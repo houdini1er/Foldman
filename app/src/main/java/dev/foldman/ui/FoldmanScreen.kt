@@ -236,29 +236,30 @@ fun FoldmanScreen(
                     .joinToString { "${it.name}[${it.stringType.substringAfterLast('.')}]" }
                 FoldMemory.hasHinge = sensor != null
                 var opened = false
+                var sawClosed = false
                 val listener = object : android.hardware.SensorEventListener {
                     override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
                     override fun onSensorChanged(e: android.hardware.SensorEvent) {
                         val angle = e.values[0]
                         dbg = "hinge ${angle.toInt()}° posture=$postureNow opened=$opened"
-                        if (postureNow != Posture.Cover) return
-                        if (angle in 6f..45f && !opened) {
+                        if (angle < 6f) sawClosed = true
+                        // The reading can jump (0 to 90 in one step), so only the angle decides, not the posture.
+                        if (sawClosed && !opened && angle >= 6f) {
                             opened = true
                             FoldMemory.resumeOnClose = feel.transport == Transport.PLAYING
                             if (feel.transport != Transport.STOPPED) deck.stop()
                             if (feel.haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                         }
-                        if (angle <= 45f) {
-                            if (angle < 4f && opened) {
-                                opened = false
-                                scope.launch {
-                                    anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
-                                    if (FoldMemory.resumeOnClose) deck.play()
-                                    FoldMemory.resumeOnClose = false
-                                }
-                            } else if (opened) {
-                                scope.launch { anim.insert.snapTo((angle / 45f).coerceIn(0f, 1f) * 0.42f) }
+                        if (angle < 4f && opened) {
+                            opened = false
+                            scope.launch {
+                                anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
+                                if (FoldMemory.resumeOnClose) deck.play()
+                                FoldMemory.resumeOnClose = false
                             }
+                        } else if (opened && postureNow != Posture.Unfolded && feel.transport == Transport.STOPPED) {
+                            val target = (angle / 45f).coerceIn(0f, 1f) * 0.42f
+                            scope.launch { anim.insert.animateTo(target, tween(180, easing = FastOutSlowInEasing)) }
                         }
                     }
                 }
