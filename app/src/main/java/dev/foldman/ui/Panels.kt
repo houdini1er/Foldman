@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -453,11 +454,47 @@ fun TapeRack(
             when {
                 ui.source == Source.LOCAL && ui.status == SourceStatus.Ready -> {
                     val list = rememberLazyListState()
-                    // Open on the tape that's in the deck.
-                    LaunchedEffect(Unit) { if (ui.trackIndex in ui.tracks.indices) list.scrollToItem(ui.trackIndex) }
+                    // Albums = folders, in library order; each knows the index of its first tape.
+                    val albums = remember(ui.tracks) {
+                        // Runs of the same folder (the scan is depth-first, so albums are contiguous).
+                        val runs = mutableListOf<MutableList<IndexedValue<LocalTrack>>>()
+                        ui.tracks.withIndex().forEach { iv ->
+                            if (runs.lastOrNull()?.first()?.value?.folder == iv.value.folder) runs.last() += iv
+                            else runs += mutableListOf(iv)
+                        }
+                        runs.map { Triple(it.first().value.folder, it.first().index, it) }
+                    }
+                    val open = remember { mutableStateMapOf<Int, Boolean>() }
+                    // Open on the album that's in the deck.
+                    LaunchedEffect(Unit) {
+                        val at = albums.indexOfFirst { ui.trackIndex in it.third.first().index..it.third.last().index }
+                        if (at >= 0) {
+                            open[albums[at].second] = true
+                            list.scrollToItem(at)
+                        }
+                    }
                     LazyColumn(state = list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        itemsIndexed(ui.tracks, key = { i, _ -> i }) { i, t ->
-                            RackTape(t, i, current = i == ui.trackIndex, drag = drag, onTap = onTap, onRelease = onRelease)
+                        albums.forEach { (folder, first, items) ->
+                            item(key = "album:$first") {
+                                RackAlbum(
+                                    folder = folder,
+                                    first = items.first().value,
+                                    firstIndex = first,
+                                    count = items.size,
+                                    expanded = open[first] == true,
+                                    current = ui.trackIndex in items.first().index..items.last().index,
+                                    drag = drag,
+                                    onToggle = { open[first] = open[first] != true },
+                                    onRelease = onRelease,
+                                )
+                            }
+                            if (open[first] == true) {
+                                items(items, key = { "tape:${it.index}" }) { (i, t) ->
+                                    Box(Modifier.padding(start = 18.dp)) {
+                                        RackTape(t, i, current = i == ui.trackIndex, drag = drag, onTap = onTap, onRelease = onRelease)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -472,7 +509,7 @@ fun TapeRack(
         }
         if (ui.source == Source.LOCAL && ui.status == SourceStatus.Ready) {
             Spacer(Modifier.height(8.dp))
-            Text("Slide a tape to the right to load it", style = Sub.copy(fontSize = 11.sp, letterSpacing = 1.sp))
+            Text("Tap an album to open it · slide an album or a tape to the right to play", style = Sub.copy(fontSize = 11.sp, letterSpacing = 1.sp))
         }
     }
 }
@@ -508,6 +545,52 @@ private fun RackTape(
             },
         current = current,
     )
+}
+
+/** An album (folder) in the rack: tap to open or close it, slide it right to play it all. */
+@Composable
+private fun RackAlbum(
+    folder: String,
+    first: LocalTrack,
+    firstIndex: Int,
+    count: Int,
+    expanded: Boolean,
+    current: Boolean,
+    drag: TapeDrag,
+    onToggle: () -> Unit,
+    onRelease: (Float) -> Unit,
+) {
+    var pos by remember { mutableStateOf(Offset.Zero) }
+    var width by remember { mutableIntStateOf(0) }
+    // A stand-in tape: the whole album loads from its first song and plays on to the end.
+    val card = remember(folder, first, count) {
+        LocalTrack(first.uri, folder.ifBlank { "(root)" }, "$count tapes", folder, first.coverUri)
+    }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { pos = it.positionInRoot(); width = it.size.width }
+            .graphicsLayer { alpha = if (drag.index == firstIndex && drag.track === card) 0.25f else 1f }
+            .clickable(onClick = onToggle)
+            .pointerInput(firstIndex) {
+                detectHorizontalDragGestures(
+                    onDragStart = { drag.begin(card, firstIndex, pos, width) },
+                    onDragEnd = { onRelease(drag.origin.x + drag.dx + drag.width / 2f) },
+                    onDragCancel = { onRelease(Float.NEGATIVE_INFINITY) },
+                    onHorizontalDrag = { change, amount ->
+                        change.consume()
+                        drag.dx = (drag.dx + amount).coerceAtLeast(-24f)
+                    },
+                )
+            },
+    ) {
+        TapeCard(card, Modifier.fillMaxWidth(), current = current)
+        Text(
+            if (expanded) "▾" else "▸",
+            style = Title.copy(color = Color.White.copy(alpha = 0.8f), fontSize = 18.sp),
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 12.dp),
+        )
+    }
 }
 
 // endregion
