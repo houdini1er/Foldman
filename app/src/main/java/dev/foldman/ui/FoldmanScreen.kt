@@ -89,6 +89,10 @@ private object FoldMemory {
     var wasCover = false
     var resumeOnClose = false
     var hasHinge = false
+    /** The phone is open and the tape is out; survives a recreated activity so the eject isn't replayed as a drop-in. */
+    var opened = false
+    var sawClosed = false
+    var level = 0f
 }
 
 /** Body enamel: the blue of the first portable cassette players (the unfolded deck). */
@@ -125,6 +129,11 @@ fun FoldmanScreen(
 
     // A new tape drops into the deck whenever the source changes (and when the app opens).
     LaunchedEffect(ui.source) {
+        if (FoldMemory.opened) {
+            // The phone is open: keep the tape where the hinge put it instead of dropping a new one in.
+            anim.insert.snapTo(FoldMemory.level)
+            return@LaunchedEffect
+        }
         anim.insert.snapTo(1f)
         anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
         if (feel.keySounds) sounds.autoStop()
@@ -231,31 +240,31 @@ fun FoldmanScreen(
                 val sensor = (if (android.os.Build.VERSION.SDK_INT >= 30) sm.getDefaultSensor(android.hardware.Sensor.TYPE_HINGE_ANGLE) else null)
                     ?: all.firstOrNull { it.name.contains("hinge", true) || it.stringType.contains("hinge", true) || it.stringType.contains("fold", true) }
                 FoldMemory.hasHinge = sensor != null
-                var opened = false
-                var sawClosed = false
                 val listener = object : android.hardware.SensorEventListener {
                     override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
                     override fun onSensorChanged(e: android.hardware.SensorEvent) {
                         val angle = e.values[0]
-                        if (angle < 6f) sawClosed = true
+                        if (angle < 6f) FoldMemory.sawClosed = true
                         // The reading can jump (0 to 90 in one step), so only the angle decides, not the posture.
                         var justOpened = false
-                        if (sawClosed && !opened && angle >= 6f) {
-                            opened = true
+                        if (FoldMemory.sawClosed && !FoldMemory.opened && angle >= 6f) {
+                            FoldMemory.opened = true
                             justOpened = true
                             FoldMemory.resumeOnClose = feel.transport == Transport.PLAYING
                             if (feel.transport != Transport.STOPPED) deck.stop()
                             if (feel.haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                         }
-                        if (angle < 4f && opened) {
-                            opened = false
+                        if (angle < 4f && FoldMemory.opened) {
+                            FoldMemory.opened = false
+                            FoldMemory.level = 0f
                             scope.launch {
                                 anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
                                 if (FoldMemory.resumeOnClose) deck.play()
                                 FoldMemory.resumeOnClose = false
                             }
-                        } else if (opened && postureNow != Posture.Unfolded && (justOpened || feel.transport == Transport.STOPPED)) {
-                            val target = (angle / 45f).coerceIn(0f, 1f) * 1f
+                        } else if (FoldMemory.opened && postureNow != Posture.Unfolded && (justOpened || feel.transport == Transport.STOPPED)) {
+                            val target = (angle / 45f).coerceIn(0f, 1f)
+                            FoldMemory.level = target
                             scope.launch { anim.insert.animateTo(target, tween(450, easing = FastOutSlowInEasing)) }
                         }
                     }
@@ -276,7 +285,7 @@ fun FoldmanScreen(
                         anim.insert.snapTo(0f)
                     }
                     if (feel.haptics && !FoldMemory.hasHinge) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    if (anim.insert.value < 1f) anim.insert.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
+                    if (anim.insert.value < 1f) { FoldMemory.level = 1f; anim.insert.animateTo(1f, tween(600, easing = FastOutSlowInEasing)) }
                 } else if (before != null && before != Posture.Cover && posture == Posture.Cover && !FoldMemory.hasHinge) {
                     anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
                     if (FoldMemory.resumeOnClose) deck.play()
