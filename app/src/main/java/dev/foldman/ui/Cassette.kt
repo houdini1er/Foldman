@@ -85,10 +85,19 @@ fun TapeWindow(ui: DeckUi, anim: DeckAnimations, modifier: Modifier = Modifier, 
         drawPath(innerPath, Color(0xFF0C0C0D))
         val slide = anim.insert.value
         val pop = anim.pop.value
-        clipPath(innerPath) {
-            // In and out through the top of the case (the left of the canvas when stood on end).
-            val dx = if (vertical) slide * size.width * 1.1f + pop * u * 5f else 0f
-            val dy = if (vertical) 0f else -slide * size.height * 1.3f - pop * u * 5f
+        // Stood on end, the tape leaves through the top of the window and stays visible outside it,
+        // so the clip is the window plus an open strip beyond its top edge.
+        val tapePath = if (vertical && slide > 0.001f) {
+            Path.combine(
+                androidx.compose.ui.graphics.PathOperation.Union,
+                innerPath,
+                Path().apply { addRect(Rect(size.width * 0.5f, rim, size.width * 2.4f, size.height - rim)) },
+            )
+        } else innerPath
+        // In and out through the top of the case (the right of the canvas when stood on end).
+        val dx = if (vertical) slide * size.width * 1.1f + pop * u * 5f else 0f
+        val dy = if (vertical) 0f else -slide * size.height * 1.3f - pop * u * 5f
+        clipPath(tapePath) {
             translate(dx, dy) {
                 withTransform({
                     translate(-CROP.left * u, -CROP.top * u)
@@ -97,6 +106,8 @@ fun TapeWindow(ui: DeckUi, anim: DeckAnimations, modifier: Modifier = Modifier, 
                     drawCassette(ui, anim.reels, shell, measurer, u)
                 }
             }
+        }
+        clipPath(innerPath) {
             // Smoked glass: tint, a long diagonal reflection and a soft top glare.
             drawRect(Color(0xFF26303C).copy(alpha = 0.22f))
             drawPath(

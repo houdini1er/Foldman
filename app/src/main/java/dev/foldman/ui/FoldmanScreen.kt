@@ -260,7 +260,7 @@ fun FoldmanScreen(
                                 FoldMemory.resumeOnClose = false
                             }
                         } else if (opened && postureNow != Posture.Unfolded && (justOpened || feel.transport == Transport.STOPPED)) {
-                            val target = (angle / 45f).coerceIn(0f, 1f) * 0.42f
+                            val target = (angle / 45f).coerceIn(0f, 1f) * 0.2f
                             scope.launch { anim.insert.animateTo(target, tween(180, easing = FastOutSlowInEasing)) }
                         }
                     }
@@ -281,7 +281,7 @@ fun FoldmanScreen(
                         anim.insert.snapTo(0f)
                     }
                     if (feel.haptics && !FoldMemory.hasHinge) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    if (anim.insert.value < 0.42f) anim.insert.animateTo(0.42f, tween(600, easing = FastOutSlowInEasing))
+                    if (anim.insert.value < 0.2f) anim.insert.animateTo(0.2f, tween(600, easing = FastOutSlowInEasing))
                 } else if (before != null && before != Posture.Cover && posture == Posture.Cover && !FoldMemory.hasHinge) {
                     anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
                     if (FoldMemory.resumeOnClose) deck.play()
