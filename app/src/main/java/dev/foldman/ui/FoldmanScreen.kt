@@ -1,9 +1,19 @@
 package dev.foldman.ui
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -71,7 +81,8 @@ private val Enamel = Color(0xFF2F6FB5)
  * Picks a layout from the hinge:
  *  - folded (cover screen): the portable player stood upright, tape on end behind its window,
  *    keys and volume down a silver side strip;
- *  - unfolded: the same player laid down as a deck, with the library above and now-playing below;
+ *  - unfolded: opened like a book, the cassette rack on the left and the player on the right; slide a
+ *    tape from the rack onto the player and it seats itself and starts;
  *  - half-open on a table (Flex mode): the deck on the upper half, the library on the lower.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,6 +151,36 @@ fun FoldmanScreen(
     val deck = remember(vm) { DeckControls(vm) }
     val fold = windowLayout?.displayFeatures?.filterIsInstance<FoldingFeature>()?.firstOrNull()
 
+    // Book layout: a tape slid from the rack onto the player.
+    val tapeDrag = remember { TapeDrag() }
+    var deckBounds by remember { mutableStateOf(Rect.Zero) }
+    val loadTape: (Int) -> Unit = { index ->
+        scope.launch {
+            vm.playTrack(index)
+            // The old cassette pops out and the new one seats itself.
+            anim.insert.snapTo(1f)
+            anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
+            if (feel.keySounds) sounds.autoStop()
+        }
+    }
+    val dropTape: (Float) -> Unit = { centerX ->
+        val d = tapeDrag
+        val index = d.index
+        if (index >= 0) scope.launch {
+            if (centerX >= deckBounds.left + deckBounds.width * 0.1f) {
+                // Glide to the middle of the player, then seat the tape and play.
+                val target = deckBounds.center.x - d.width / 2f - d.origin.x
+                Animatable(d.dx).animateTo(target, tween(170)) { d.dx = value }
+                d.clear()
+                if (feel.haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                loadTape(index)
+            } else {
+                Animatable(d.dx).animateTo(0f, spring(dampingRatio = 0.7f, stiffness = 400f)) { d.dx = value }
+                d.clear()
+            }
+        }
+    }
+
     CompositionLocalProvider(
         LocalMechSounds provides sounds.takeIf { ui.keySounds },
         LocalHaptics provides ui.haptics,
@@ -151,8 +192,6 @@ fun FoldmanScreen(
         ) {
             val density = LocalDensity.current
             val sheetHeight = maxHeight * 0.8f
-            // Held sideways the inner screen is short, so the library gets a bigger share.
-            val landscape = maxWidth > maxHeight
             val posture = when {
                 fold != null && fold.state == FoldingFeature.State.HALF_OPENED && fold.orientation == FoldingFeature.Orientation.HORIZONTAL -> Posture.Tabletop
                 fold != null && fold.orientation == FoldingFeature.Orientation.VERTICAL -> Posture.Unfolded
@@ -163,13 +202,25 @@ fun FoldmanScreen(
             when (posture) {
                 // The cover screen is the player itself: edge to edge, system bars hidden.
                 Posture.Cover -> CoverWalkman(ui, anim, deck, onTapes = { shelfOpen = true }, modifier = Modifier.fillMaxSize())
-                Posture.Unfolded -> Column(
+                Posture.Unfolded -> Row(
                     Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    LibraryBand(ui, shelfActions, vm::playQueueItem, Modifier.fillMaxWidth().weight(if (landscape) 0.31f else 0.27f))
-                    DeckBand(ui, anim, deck, vm, Modifier.fillMaxWidth().weight(if (landscape) 0.44f else 0.46f))
-                    NowPlayingBand(ui, vm::playQueueItem, Modifier.fillMaxWidth().weight(if (landscape) 0.25f else 0.27f))
+                    TapeRack(
+                        ui, shelfActions, tapeDrag,
+                        onTap = loadTape,
+                        onRelease = dropTape,
+                        modifier = Modifier.weight(0.42f).fillMaxHeight(),
+                    )
+                    // The right-hand page is the upright player; STOP·EJECT on it just stops or pops the tape.
+                    CoverWalkman(
+                        ui, anim, deck, onTapes = { deck.stop() },
+                        modifier = Modifier
+                            .weight(0.58f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(22.dp))
+                            .onGloballyPositioned { deckBounds = it.boundsInRoot() },
+                    )
                 }
                 Posture.Tabletop -> {
                     val (topH, gap) = with(density) {
@@ -195,6 +246,16 @@ fun FoldmanScreen(
                         )
                     }
                 }
+            }
+            // The cassette being carried, drawn above both pages so it can cross the spine.
+            tapeDrag.track?.let { t ->
+                TapeCard(
+                    t,
+                    Modifier
+                        .offset { IntOffset((tapeDrag.origin.x + tapeDrag.dx).roundToInt(), tapeDrag.origin.y.roundToInt()) }
+                        .width(with(density) { tapeDrag.width.toDp() })
+                        .graphicsLayer { rotationZ = 3f; scaleX = 1.05f; scaleY = 1.05f; shadowElevation = 30f },
+                )
             }
             if (shelfOpen && posture == Posture.Cover) {
                 ModalBottomSheet(

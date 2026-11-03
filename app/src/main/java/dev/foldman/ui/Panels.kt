@@ -4,7 +4,9 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,11 +31,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -51,6 +62,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.foldman.deck.DeckUi
+import dev.foldman.deck.LocalTrack
 import dev.foldman.deck.QueueEntry
 import dev.foldman.deck.Source
 import dev.foldman.deck.SourceStatus
@@ -327,3 +339,175 @@ fun NowPlayingBand(ui: DeckUi, onPlayQueue: (Long) -> Unit, modifier: Modifier =
         }
     }
 }
+
+// region Cassette rack (unfolded "book" layout)
+
+/** A cassette being carried from the rack to the deck: where its card started and how far it has slid. */
+class TapeDrag {
+    var track by mutableStateOf<LocalTrack?>(null)
+    var index by mutableIntStateOf(-1)
+    /** Top-left of the card where the drag began, in root coordinates. */
+    var origin by mutableStateOf(Offset.Zero)
+    var width by mutableIntStateOf(0)
+    var dx by mutableFloatStateOf(0f)
+
+    fun begin(t: LocalTrack, i: Int, at: Offset, w: Int) {
+        track = t; index = i; origin = at; width = w; dx = 0f
+    }
+
+    fun clear() {
+        track = null; index = -1; dx = 0f
+    }
+}
+
+/** Card colours (body, ink), picked per folder so an album's tapes look alike. */
+private val TapeColors = listOf(
+    Color(0xFF18223F) to Color(0xFFF2F0E8),
+    Color(0xFFECE6D4) to Color(0xFF2A2A2A),
+    Color(0xFFF0B25A) to Color(0xFF2A2118),
+    Color(0xFF24407F) to Color(0xFFF2F0E8),
+    Color(0xFFD9D3C0) to Color(0xFF2A2A2A),
+)
+
+/** One tape in the rack: a cassette spine with its cover, handwritten title and artist. */
+@Composable
+fun TapeCard(t: LocalTrack, modifier: Modifier = Modifier, current: Boolean = false) {
+    val (body, ink) = TapeColors[(t.folder.hashCode() and 0x7fffffff) % TapeColors.size]
+    val shape = RoundedCornerShape(6.dp)
+    Row(
+        modifier
+            .height(54.dp)
+            .clip(shape)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        androidx.compose.ui.graphics.lerp(body, Color.White, 0.14f),
+                        body,
+                        androidx.compose.ui.graphics.lerp(body, Color.Black, 0.2f),
+                    ),
+                ),
+            )
+            .then(if (current) Modifier.border(2.dp, DeckColors.Accent, shape) else Modifier)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Thumb(null, t.coverUri, Modifier.size(36.dp))
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                t.title,
+                style = Title.copy(color = ink, fontFamily = FontFamily.Cursive, fontSize = 18.sp),
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            t.artist?.let { Text(it, style = Sub.copy(color = ink.copy(alpha = 0.7f)), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+    }
+}
+
+/**
+ * The library on the left of the unfolded phone. Local tapes can be slid to the right: the card
+ * follows the finger ([drag]) and [onRelease] is told where it was let go (root x of its centre).
+ * A tap loads a tape too ([onTap]).
+ */
+@Composable
+fun TapeRack(
+    ui: DeckUi,
+    actions: ShelfActions,
+    drag: TapeDrag,
+    onTap: (Int) -> Unit,
+    onRelease: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier.glassPanel().padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("CASSETTE RACK", style = Header.copy(letterSpacing = 1.5.sp), modifier = Modifier.weight(1f))
+            if (ui.source == Source.LOCAL) {
+                Text(
+                    if (ui.status == SourceStatus.NeedsFolder) "Choose folder" else "Change folder",
+                    style = Sub.copy(color = DeckColors.Accent, fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.clickable(onClick = actions.pickFolder).padding(4.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Source.entries.forEach { s ->
+                val selected = s == ui.source
+                Row(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.04f))
+                        .clickable { actions.selectSource(s) }
+                        .padding(horizontal = 6.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SourceTile(s, Modifier.size(22.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(s.label.substringBefore(' '), style = Sub.copy(color = Title.color), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                ui.source == Source.LOCAL && ui.status == SourceStatus.Ready -> {
+                    val list = rememberLazyListState()
+                    // Open on the tape that's in the deck.
+                    LaunchedEffect(Unit) { if (ui.trackIndex in ui.tracks.indices) list.scrollToItem(ui.trackIndex) }
+                    LazyColumn(state = list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        itemsIndexed(ui.tracks, key = { i, _ -> i }) { i, t ->
+                            RackTape(t, i, current = i == ui.trackIndex, drag = drag, onTap = onTap, onRelease = onRelease)
+                        }
+                    }
+                }
+                ui.source == Source.LOCAL -> Column { Albums(ui, actions) }
+                ui.source == Source.APPLE_MUSIC -> Column {
+                    Text(ui.apple.openPlaylist?.let { "Playlist" } ?: "Playlists", style = Header)
+                    Spacer(Modifier.height(8.dp))
+                    AppleBrowser(ui.apple, actions.apple, fallback = { RemoteState(ui, actions, showHeader = false) })
+                }
+                else -> Column { RemoteState(ui, actions) }
+            }
+        }
+        if (ui.source == Source.LOCAL && ui.status == SourceStatus.Ready) {
+            Spacer(Modifier.height(8.dp))
+            Text("Slide a tape to the right to load it", style = Sub.copy(fontSize = 11.sp, letterSpacing = 1.sp))
+        }
+    }
+}
+
+@Composable
+private fun RackTape(
+    t: LocalTrack,
+    index: Int,
+    current: Boolean,
+    drag: TapeDrag,
+    onTap: (Int) -> Unit,
+    onRelease: (Float) -> Unit,
+) {
+    var pos by remember { mutableStateOf(Offset.Zero) }
+    var width by remember { mutableIntStateOf(0) }
+    TapeCard(
+        t,
+        Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { pos = it.positionInRoot(); width = it.size.width }
+            .graphicsLayer { alpha = if (drag.index == index) 0.25f else 1f }
+            .clickable { onTap(index) }
+            .pointerInput(index) {
+                detectHorizontalDragGestures(
+                    onDragStart = { drag.begin(t, index, pos, width) },
+                    onDragEnd = { onRelease(drag.origin.x + drag.dx + drag.width / 2f) },
+                    onDragCancel = { onRelease(Float.NEGATIVE_INFINITY) },
+                    onHorizontalDrag = { change, amount ->
+                        change.consume()
+                        drag.dx = (drag.dx + amount).coerceAtLeast(-24f)
+                    },
+                )
+            },
+        current = current,
+    )
+}
+
+// endregion
