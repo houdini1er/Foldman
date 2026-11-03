@@ -244,8 +244,10 @@ fun FoldmanScreen(
                         dbg = "hinge ${angle.toInt()}° posture=$postureNow opened=$opened"
                         if (angle < 6f) sawClosed = true
                         // The reading can jump (0 to 90 in one step), so only the angle decides, not the posture.
+                        var justOpened = false
                         if (sawClosed && !opened && angle >= 6f) {
                             opened = true
+                            justOpened = true
                             FoldMemory.resumeOnClose = feel.transport == Transport.PLAYING
                             if (feel.transport != Transport.STOPPED) deck.stop()
                             if (feel.haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
@@ -257,7 +259,7 @@ fun FoldmanScreen(
                                 if (FoldMemory.resumeOnClose) deck.play()
                                 FoldMemory.resumeOnClose = false
                             }
-                        } else if (opened && postureNow != Posture.Unfolded && feel.transport == Transport.STOPPED) {
+                        } else if (opened && postureNow != Posture.Unfolded && (justOpened || feel.transport == Transport.STOPPED)) {
                             val target = (angle / 45f).coerceIn(0f, 1f) * 0.42f
                             scope.launch { anim.insert.animateTo(target, tween(180, easing = FastOutSlowInEasing)) }
                         }
