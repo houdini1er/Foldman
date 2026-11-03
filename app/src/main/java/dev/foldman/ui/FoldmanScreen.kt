@@ -352,6 +352,8 @@ private val OnEnamel = EngravedCaps.copy(color = Color(0xFFDCE6F2))
 @Composable
 private fun CoverWalkman(ui: DeckUi, anim: DeckAnimations, deck: DeckControls, onTapes: () -> Unit, modifier: Modifier) {
     BoxWithConstraints(modifier) {
+        // Read here: inside the Column below the scope's maxHeight is out of reach.
+        val topGap = (maxHeight * 0.07f).coerceAtLeast(36.dp)
         Row(Modifier.fillMaxSize().paintedBody(Slate, capHeight = 0.dp, corner = 0.dp, framed = false)) {
             Column(
                 Modifier
@@ -362,7 +364,7 @@ private fun CoverWalkman(ui: DeckUi, anim: DeckAnimations, deck: DeckControls, o
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // Clear of the camera hole.
-                Spacer(Modifier.height((maxHeight * 0.07f).coerceAtLeast(36.dp)))
+                Spacer(Modifier.height(topGap))
                 Wordmark("FOLDMAN", 34.sp)
                 Spacer(Modifier.height(6.dp))
                 Text("STEREO CASSETTE PLAYER · FM-8", style = OnEnamel.copy(fontSize = 8.sp, letterSpacing = 1.6.sp), maxLines = 1)
