@@ -2,6 +2,12 @@ package dev.foldman.ui
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.input.pointer.pointerInput
+import dev.foldman.deck.Transport
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -74,8 +80,11 @@ import kotlinx.coroutines.launch
 
 private enum class Posture { Cover, Unfolded, Tabletop }
 
-/** Body enamel: the blue of the first portable cassette players. */
+/** Body enamel: the blue of the first portable cassette players (the unfolded deck). */
 private val Enamel = Color(0xFF2F6FB5)
+
+/** The folded player's case: dark brushed slate. */
+private val Slate = Color(0xFF29303A)
 
 /**
  * Picks a layout from the hinge:
@@ -153,6 +162,8 @@ fun FoldmanScreen(
 
     // Book layout: a tape slid from the rack onto the player.
     val tapeDrag = remember { TapeDrag() }
+    var lastPosture by remember { mutableStateOf<Posture?>(null) }
+    var resumeOnClose by remember { mutableStateOf(false) }
     var deckBounds by remember { mutableStateOf(Rect.Zero) }
     val loadTape: (Int) -> Unit = { index ->
         scope.launch {
@@ -199,6 +210,28 @@ fun FoldmanScreen(
                 else -> Posture.Cover
             }
             LaunchedEffect(posture) { view.showSystemBars(posture != Posture.Cover) }
+            // Opening the phone opens the lid: the tape stops and starts to come out of the deck.
+            // Closing it seats the tape again and, if it was playing, carries on.
+            LaunchedEffect(posture) {
+                val before = lastPosture
+                lastPosture = posture
+                if (before == Posture.Cover && posture == Posture.Unfolded) {
+                    resumeOnClose = feel.transport == Transport.PLAYING
+                    if (feel.transport != Transport.STOPPED) deck.stop()
+                    if (feel.haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    anim.insert.animateTo(0.42f, tween(550, easing = FastOutSlowInEasing))
+                } else if (before == Posture.Unfolded && posture == Posture.Cover) {
+                    anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
+                    if (resumeOnClose) deck.play()
+                    resumeOnClose = false
+                }
+            }
+            // Pressing PLAY (or any key that moves the tape) on a half-ejected tape seats it first.
+            LaunchedEffect(ui.transport) {
+                if (ui.transport != Transport.STOPPED && anim.insert.value > 0.01f && anim.insert.value < 1f) {
+                    anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
+                }
+            }
             when (posture) {
                 // The cover screen is the player itself: edge to edge, system bars hidden.
                 Posture.Cover -> CoverWalkman(ui, anim, deck, onTapes = { shelfOpen = true }, modifier = Modifier.fillMaxSize())
@@ -312,12 +345,14 @@ private class DeckControls(vm: DeckViewModel) {
 private val Serif = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Black, color = Color(0xFFF1F3F6), letterSpacing = 2.sp)
 private val OnEnamel = EngravedCaps.copy(color = Color(0xFFDCE6F2))
 
-/** The folded phone: an upright portable player. */
+/**
+ * The folded phone: an upright portable player in dark brushed metal. FOLDMAN across the top, the
+ * tape on end in its window, the operate lamp and tape counter below it, OPEN to the library.
+ */
 @Composable
 private fun CoverWalkman(ui: DeckUi, anim: DeckAnimations, deck: DeckControls, onTapes: () -> Unit, modifier: Modifier) {
     BoxWithConstraints(modifier) {
-        val capH = maxHeight * 0.12f
-        Row(Modifier.fillMaxSize().paintedBody(Enamel, capHeight = capH, corner = 0.dp, framed = false)) {
+        Row(Modifier.fillMaxSize().paintedBody(Slate, capHeight = 0.dp, corner = 0.dp, framed = false)) {
             Column(
                 Modifier
                     .weight(0.73f)
@@ -326,14 +361,12 @@ private fun CoverWalkman(ui: DeckUi, anim: DeckAnimations, deck: DeckControls, o
                     .padding(start = 20.dp, end = 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(Modifier.fillMaxWidth().height(capH)) {
-                    // Inset from the corner so the display's rounded corner doesn't clip it.
-                    HotlineButton(onTapes, Modifier.align(Alignment.TopStart).padding(top = 22.dp, start = 8.dp).size(44.dp, 22.dp))
-                    Text("TAPES", style = OnEnamel.copy(fontSize = 7.sp), modifier = Modifier.align(Alignment.TopStart).padding(top = 48.dp, start = 14.dp))
-                }
-                Spacer(Modifier.height(18.dp))
-                Text("STEREO", style = Serif.copy(fontSize = 30.sp))
-                Spacer(Modifier.height(18.dp))
+                // Clear of the camera hole.
+                Spacer(Modifier.height((maxHeight * 0.07f).coerceAtLeast(36.dp)))
+                Wordmark("FOLDMAN", 34.sp)
+                Spacer(Modifier.height(6.dp))
+                Text("STEREO CASSETTE PLAYER · FM-8", style = OnEnamel.copy(fontSize = 8.sp, letterSpacing = 1.6.sp), maxLines = 1)
+                Spacer(Modifier.height(16.dp))
                 Row(Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
                         TapeWindow(ui, anim, vertical = true)
@@ -342,25 +375,32 @@ private fun CoverWalkman(ui: DeckUi, anim: DeckAnimations, deck: DeckControls, o
                     EjectArrow(onTapes, Modifier.size(30.dp, 58.dp))
                 }
                 Spacer(Modifier.height(14.dp))
-                Text(
-                    listOf(ui.title, ui.artist).filter { it.isNotBlank() }.joinToString("  —  ").ifBlank { "NO TAPE" }.uppercase(),
-                    style = OnEnamel.copy(fontSize = 9.sp, letterSpacing = 1.5.sp),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+                    StatusLed(ui.transport, caption = "OPERATION")
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.bezel().padding(5.dp)) { TapeCounter(anim.reels, digitWidth = 16.dp) }
+                        Spacer(Modifier.height(4.dp))
+                        Text("TAPE COUNTER", style = OnEnamel.copy(fontSize = 7.sp, letterSpacing = 1.sp))
+                    }
+                }
                 Spacer(Modifier.height(10.dp))
-                Wordmark("FOLDMAN", 40.sp)
-                Spacer(Modifier.height(20.dp))
+                Text(
+                    "OPEN ▶",
+                    style = OnEnamel.copy(fontSize = 16.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold),
+                    modifier = Modifier.clickable(onClick = onTapes).padding(horizontal = 14.dp, vertical = 6.dp),
+                )
+                Spacer(Modifier.height(18.dp))
             }
             SideStrip(ui, deck, Modifier.weight(0.27f).fillMaxHeight())
         }
     }
 }
 
-/** The silver strip down the side of the case: mic, LED, skip, keys, volume, phones. */
+/** The silver strip down the side of the case: mic, LED, skip, keys, phones, volume, talk. */
 @Composable
 private fun SideStrip(ui: DeckUi, deck: DeckControls, modifier: Modifier) {
     BoxWithConstraints(modifier) {
-        val keyH = ((maxHeight - 400.dp) / 5 - 18.dp).coerceIn(34.dp, 64.dp)
+        val keyH = ((maxHeight - 450.dp) / 5 - 18.dp).coerceIn(34.dp, 64.dp)
         // Runs the full height of the screen; the padding keeps controls clear of the rounded corners.
         Column(
             Modifier
@@ -373,22 +413,49 @@ private fun SideStrip(ui: DeckUi, deck: DeckControls, modifier: Modifier) {
             MicGrille(Modifier.fillMaxWidth().height(26.dp))
             Text("MIC", style = EngravedCaps.copy(fontSize = 7.sp))
             Spacer(Modifier.height(8.dp))
-            StatusLed(ui.transport)
-            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
                 MiniButton("AMS", deck.previous, symbol = KeySymbol.PREV, diameter = 26.dp)
                 MiniButton("AMS", deck.next, symbol = KeySymbol.NEXT, diameter = 26.dp, enabled = ui.hasNext)
             }
             Spacer(Modifier.height(10.dp))
             TransportKeys(ui, deck.stop, deck.rewind, deck.play, deck.fastForward, deck.pause, Modifier.fillMaxWidth(), keyHeight = keyH, vertical = true)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
+            PhonesJack(Modifier.size(18.dp))
+            Text("PHONES", style = EngravedCaps.copy(fontSize = 6.sp))
+            Spacer(Modifier.height(6.dp))
             Text("VOLUME", style = EngravedCaps.copy(fontSize = 7.sp))
             VolumeSlider(ui.volume, deck.volume, Modifier.fillMaxWidth().weight(1f))
             Spacer(Modifier.height(8.dp))
-            PhonesJack(Modifier.size(18.dp))
-            Text("PHONES", style = EngravedCaps.copy(fontSize = 6.sp))
+            TalkButton(ui.volume, deck.volume)
         }
     }
+}
+
+/** TALK: holding it ducks the music to a fifth of its volume, so you can speak over it. */
+@Composable
+private fun TalkButton(volume: Float, setVolume: (Float) -> Unit) {
+    val current by rememberUpdatedState(volume)
+    val set by rememberUpdatedState(setVolume)
+    Box(
+        Modifier
+            .size(30.dp)
+            .clip(CircleShape)
+            .background(Brush.radialGradient(listOf(Color(0xFFFFB35A), Color(0xFFF28A1F), Color(0xFFA24F05))))
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        val before = current
+                        set(before * 0.2f)
+                        try {
+                            awaitRelease()
+                        } finally {
+                            set(before)
+                        }
+                    },
+                )
+            },
+    )
+    Text("TALK", style = EngravedCaps.copy(fontSize = 6.sp))
 }
 
 /** The unfolded phone: the player laid down as a deck. */

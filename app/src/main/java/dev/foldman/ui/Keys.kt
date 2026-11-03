@@ -69,12 +69,20 @@ fun TransportKeys(
     // Captions sit on the silver strip when stacked, on the dark key well otherwise.
     val cc = if (vertical) DeckColors.Engrave else Color(0xFF9EA1A7)
     val keys: @Composable (Modifier, Modifier) -> Unit = { k, play ->
-        DeckKey(KeySymbol.REW, "REW", latched = t == Transport.REWINDING, onPress = onRewind, modifier = k, height = keyHeight, captionColor = cc)
-        DeckKey(
-            KeySymbol.PLAY, "PLAY", latched = t == Transport.PLAYING || t == Transport.PAUSED, onPress = onPlay,
-            modifier = play, height = keyHeight, captionColor = cc, accent = true,
-        )
-        DeckKey(KeySymbol.FF, "FF", latched = t == Transport.FAST_FORWARDING, onPress = onFastForward, modifier = k, height = keyHeight, captionColor = cc)
+        val rew: @Composable () -> Unit = {
+            DeckKey(KeySymbol.REW, "REW", latched = t == Transport.REWINDING, onPress = onRewind, modifier = k, height = keyHeight, captionColor = cc)
+        }
+        val playKey: @Composable () -> Unit = {
+            DeckKey(
+                KeySymbol.PLAY, "PLAY", latched = t == Transport.PLAYING || t == Transport.PAUSED, onPress = onPlay,
+                modifier = play, height = keyHeight, captionColor = cc, accent = true,
+            )
+        }
+        val ff: @Composable () -> Unit = {
+            DeckKey(KeySymbol.FF, "FF", latched = t == Transport.FAST_FORWARDING, onPress = onFastForward, modifier = k, height = keyHeight, captionColor = cc)
+        }
+        // Stacked down the side strip the order is PLAY, FF, REW (as on the original); laid out in a row it is REW, PLAY, FF.
+        if (vertical) { playKey(); ff(); rew() } else { rew(); playKey(); ff() }
         DeckKey(KeySymbol.PAUSE, "PAUSE", latched = t == Transport.PAUSED, onPress = onPause, modifier = k, height = keyHeight, captionColor = cc, mark = Color(0xFF3E9C5A))
         DeckKey(KeySymbol.STOP, "STOP·EJECT", latched = false, onPress = onStop, modifier = k, height = keyHeight, captionColor = cc, mark = Color(0xFFC8352B))
     }
