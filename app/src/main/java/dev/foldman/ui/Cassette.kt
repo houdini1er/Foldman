@@ -85,15 +85,9 @@ fun TapeWindow(ui: DeckUi, anim: DeckAnimations, modifier: Modifier = Modifier, 
         drawPath(innerPath, Color(0xFF0C0C0D))
         val slide = anim.insert.value
         val pop = anim.pop.value
-        // Stood on end, the tape leaves through the top of the window and stays visible outside it,
-        // so the clip is the window plus an open strip beyond its top edge.
-        val tapePath = if (vertical && slide > 0.001f) {
-            Path.combine(
-                androidx.compose.ui.graphics.PathOperation.Union,
-                innerPath,
-                Path().apply { addRect(Rect(size.width * 0.5f, rim, size.width * 2.4f, size.height - rim)) },
-            )
-        } else innerPath
+        // The tape slides out through the top of the window and disappears behind the bezel, as on the
+        // reference: only a sliver of it stays in view at full eject.
+        val tapePath = innerPath
         // In and out through the top of the case (the right of the canvas when stood on end).
         val dx = if (vertical) slide * size.width * 1.1f + pop * u * 5f else 0f
         val dy = if (vertical) 0f else -slide * size.height * 1.3f - pop * u * 5f
