@@ -88,9 +88,10 @@ fun TapeWindow(ui: DeckUi, anim: DeckAnimations, modifier: Modifier = Modifier, 
         // The tape slides out through the top of the window and disappears behind the bezel, as on the
         // reference: only a sliver of it stays in view at full eject.
         val tapePath = innerPath
-        // In and out through the top of the case (the right of the canvas when stood on end).
-        val dx = if (vertical) slide * size.width * 1.1f + pop * u * 5f else 0f
-        val dy = if (vertical) 0f else -slide * size.height * 1.3f - pop * u * 5f
+        // Stood on end, the tape leaves toward the control keys (the canvas is turned a quarter, so the
+        // screen's right is the canvas' down); laid flat it still rises through the top.
+        val dx = if (vertical) pop * u * 5f else 0f
+        val dy = if (vertical) slide * size.height * 1.15f else -slide * size.height * 1.3f - pop * u * 5f
         clipPath(tapePath) {
             translate(dx, dy) {
                 withTransform({
@@ -130,6 +131,21 @@ fun TapeWindow(ui: DeckUi, anim: DeckAnimations, modifier: Modifier = Modifier, 
             drawPath(innerPath, Color.Black.copy(alpha = 0.6f), style = Stroke(rim * 1.4f))
         }
         drawPath(innerPath, Color.White.copy(alpha = 0.35f), style = Stroke(0.6f))
+        // The grey flap on the key side lifts while the tape slides out, then drops shut.
+        if (vertical && slide > 0.01f) {
+            val open = (slide / 0.25f).coerceIn(0f, 1f) * (1f - ((slide - 0.75f) / 0.25f).coerceIn(0f, 1f))
+            if (open > 0.01f) {
+                val h = size.height
+                val ext = h * 0.2f * open
+                val inset = size.width * 0.07f * open
+                val flap = Path().apply {
+                    moveTo(rim, h - rim); lineTo(size.width - rim, h - rim)
+                    lineTo(size.width - rim - inset, h + ext); lineTo(rim + inset, h + ext); close()
+                }
+                drawPath(flap, Brush.verticalGradient(listOf(Color(0xFFD9DCE1), Color(0xFF8A8F98)), startY = h - rim, endY = h + ext))
+                drawPath(flap, Color.Black.copy(alpha = 0.4f), style = Stroke(1.2f))
+            }
+        }
     }
 }
 
