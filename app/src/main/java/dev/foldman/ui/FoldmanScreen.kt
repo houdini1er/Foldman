@@ -76,9 +76,19 @@ import dev.foldman.deck.DeckEvent
 import dev.foldman.deck.DeckUi
 import dev.foldman.deck.DeckViewModel
 import dev.foldman.deck.Source
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private enum class Posture { Cover, Unfolded, Tabletop }
+
+/**
+ * Survives the activity being recreated when the phone opens (the cover display switches off around
+ * 45 degrees and the app is moved to the inner display), which wipes every `remember`.
+ */
+private object FoldMemory {
+    var wasCover = false
+    var resumeOnClose = false
+}
 
 /** Body enamel: the blue of the first portable cassette players (the unfolded deck). */
 private val Enamel = Color(0xFF2F6FB5)
@@ -163,7 +173,6 @@ fun FoldmanScreen(
     // Book layout: a tape slid from the rack onto the player.
     val tapeDrag = remember { TapeDrag() }
     var lastPosture by remember { mutableStateOf<Posture?>(null) }
-    var resumeOnClose by remember { mutableStateOf(false) }
     var deckBounds by remember { mutableStateOf(Rect.Zero) }
     val loadTape: (Int) -> Unit = { index ->
         scope.launch {
@@ -213,17 +222,21 @@ fun FoldmanScreen(
             // Opening the phone opens the lid: the tape stops and starts to come out of the deck.
             // Closing it seats the tape again and, if it was playing, carries on.
             LaunchedEffect(posture) {
-                val before = lastPosture
+                val before = lastPosture ?: if (FoldMemory.wasCover) Posture.Cover else null
                 lastPosture = posture
-                if (before == Posture.Cover && posture == Posture.Unfolded) {
-                    resumeOnClose = feel.transport == Transport.PLAYING
+                FoldMemory.wasCover = posture == Posture.Cover
+                if (before == Posture.Cover && posture != Posture.Cover) {
+                    FoldMemory.resumeOnClose = feel.transport == Transport.PLAYING
                     if (feel.transport != Transport.STOPPED) deck.stop()
+                    // Let the inner display light up before the tape starts to come out.
+                    delay(450)
                     if (feel.haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    anim.insert.animateTo(0.42f, tween(550, easing = FastOutSlowInEasing))
-                } else if (before == Posture.Unfolded && posture == Posture.Cover) {
+                    anim.insert.snapTo(0f)
+                    anim.insert.animateTo(0.42f, tween(700, easing = FastOutSlowInEasing))
+                } else if (before != null && before != Posture.Cover && posture == Posture.Cover) {
                     anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
-                    if (resumeOnClose) deck.play()
-                    resumeOnClose = false
+                    if (FoldMemory.resumeOnClose) deck.play()
+                    FoldMemory.resumeOnClose = false
                 }
             }
             // Pressing PLAY (or any key that moves the tape) on a half-ejected tape seats it first.
