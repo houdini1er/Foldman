@@ -225,15 +225,11 @@ fun FoldmanScreen(
             // Closing it brings the tape back in and, if it was playing, carries on.
             val postureNow by rememberUpdatedState(posture)
             val context = androidx.compose.ui.platform.LocalContext.current
-            var dbg by remember { mutableStateOf("") } // TEMP diagnostic
             DisposableEffect(context) {
                 val sm = context.getSystemService(android.content.Context.SENSOR_SERVICE) as android.hardware.SensorManager
                 val all = sm.getSensorList(android.hardware.Sensor.TYPE_ALL)
                 val sensor = (if (android.os.Build.VERSION.SDK_INT >= 30) sm.getDefaultSensor(android.hardware.Sensor.TYPE_HINGE_ANGLE) else null)
                     ?: all.firstOrNull { it.name.contains("hinge", true) || it.stringType.contains("hinge", true) || it.stringType.contains("fold", true) }
-                dbg = if (sensor != null) "sensor: ${sensor.name} [${sensor.stringType}]"
-                else "NO hinge sensor | " + all.filter { val n = (it.name + it.stringType).lowercase(); "angle" in n || "fold" in n || "hall" in n || "hinge" in n || "posture" in n }
-                    .joinToString { "${it.name}[${it.stringType.substringAfterLast('.')}]" }
                 FoldMemory.hasHinge = sensor != null
                 var opened = false
                 var sawClosed = false
@@ -241,7 +237,6 @@ fun FoldmanScreen(
                     override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
                     override fun onSensorChanged(e: android.hardware.SensorEvent) {
                         val angle = e.values[0]
-                        dbg = "hinge ${angle.toInt()}° posture=$postureNow opened=$opened"
                         if (angle < 6f) sawClosed = true
                         // The reading can jump (0 to 90 in one step), so only the angle decides, not the posture.
                         var justOpened = false
@@ -261,7 +256,7 @@ fun FoldmanScreen(
                             }
                         } else if (opened && postureNow != Posture.Unfolded && (justOpened || feel.transport == Transport.STOPPED)) {
                             val target = (angle / 45f).coerceIn(0f, 1f) * 0.2f
-                            scope.launch { anim.insert.animateTo(target, tween(180, easing = FastOutSlowInEasing)) }
+                            scope.launch { anim.insert.animateTo(target, tween(450, easing = FastOutSlowInEasing)) }
                         }
                     }
                 }
@@ -342,7 +337,6 @@ fun FoldmanScreen(
                     }
                 }
             }
-            if (dbg.isNotEmpty()) Text(dbg, color = Color.Yellow, fontSize = 9.sp, modifier = Modifier.align(Alignment.BottomStart).background(Color.Black.copy(alpha = 0.6f)).padding(2.dp)) // TEMP diagnostic
             // The cassette being carried, drawn above both pages so it can cross the spine.
             tapeDrag.track?.let { t ->
                 TapeCard(
