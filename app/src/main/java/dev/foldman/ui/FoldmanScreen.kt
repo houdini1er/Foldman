@@ -88,6 +88,7 @@ private enum class Posture { Cover, Unfolded, Tabletop }
 private object FoldMemory {
     var wasCover = false
     var resumeOnClose = false
+    var hasHinge = false
 }
 
 /** Body enamel: the blue of the first portable cassette players (the unfolded deck). */
@@ -219,21 +220,59 @@ fun FoldmanScreen(
                 else -> Posture.Cover
             }
             LaunchedEffect(posture) { view.showSystemBars(posture != Posture.Cover) }
-            // Opening the phone opens the lid: the tape stops and starts to come out of the deck.
-            // Closing it seats the tape again and, if it was playing, carries on.
+            // Opening the phone opens the lid. The cover screen stays on until about 45 degrees, so the
+            // tape follows the hinge angle live: the further the phone opens, the further it comes out.
+            // Closing it brings the tape back in and, if it was playing, carries on.
+            val postureNow by rememberUpdatedState(posture)
+            val context = androidx.compose.ui.platform.LocalContext.current
+            DisposableEffect(context) {
+                val sm = context.getSystemService(android.content.Context.SENSOR_SERVICE) as android.hardware.SensorManager
+                val sensor = if (android.os.Build.VERSION.SDK_INT >= 30) sm.getDefaultSensor(android.hardware.Sensor.TYPE_HINGE_ANGLE) else null
+                FoldMemory.hasHinge = sensor != null
+                var opened = false
+                val listener = object : android.hardware.SensorEventListener {
+                    override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
+                    override fun onSensorChanged(e: android.hardware.SensorEvent) {
+                        val angle = e.values[0]
+                        if (postureNow != Posture.Cover) return
+                        if (angle in 6f..45f && !opened) {
+                            opened = true
+                            FoldMemory.resumeOnClose = feel.transport == Transport.PLAYING
+                            if (feel.transport != Transport.STOPPED) deck.stop()
+                            if (feel.haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                        }
+                        if (angle <= 45f) {
+                            if (angle < 4f && opened) {
+                                opened = false
+                                scope.launch {
+                                    anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
+                                    if (FoldMemory.resumeOnClose) deck.play()
+                                    FoldMemory.resumeOnClose = false
+                                }
+                            } else if (opened) {
+                                scope.launch { anim.insert.snapTo((angle / 45f).coerceIn(0f, 1f) * 0.42f) }
+                            }
+                        }
+                    }
+                }
+                if (sensor != null) sm.registerListener(listener, sensor, android.hardware.SensorManager.SENSOR_DELAY_GAME)
+                onDispose { sm.unregisterListener(listener) }
+            }
             LaunchedEffect(posture) {
                 val before = lastPosture ?: if (FoldMemory.wasCover) Posture.Cover else null
                 lastPosture = posture
                 FoldMemory.wasCover = posture == Posture.Cover
                 if (before == Posture.Cover && posture != Posture.Cover) {
-                    FoldMemory.resumeOnClose = feel.transport == Transport.PLAYING
-                    if (feel.transport != Transport.STOPPED) deck.stop()
-                    // Let the inner display light up before the tape starts to come out.
-                    delay(450)
-                    if (feel.haptics) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    anim.insert.snapTo(0f)
-                    anim.insert.animateTo(0.42f, tween(700, easing = FastOutSlowInEasing))
-                } else if (before != null && before != Posture.Cover && posture == Posture.Cover) {
+                    if (!FoldMemory.hasHinge) {
+                        // No hinge sensor: stop and eject once the inner display shows.
+                        FoldMemory.resumeOnClose = feel.transport == Transport.PLAYING
+                        if (feel.transport != Transport.STOPPED) deck.stop()
+                        delay(450)
+                        anim.insert.snapTo(0f)
+                    }
+                    if (feel.haptics && !FoldMemory.hasHinge) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    if (anim.insert.value < 0.42f) anim.insert.animateTo(0.42f, tween(600, easing = FastOutSlowInEasing))
+                } else if (before != null && before != Posture.Cover && posture == Posture.Cover && !FoldMemory.hasHinge) {
                     anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
                     if (FoldMemory.resumeOnClose) deck.play()
                     FoldMemory.resumeOnClose = false
