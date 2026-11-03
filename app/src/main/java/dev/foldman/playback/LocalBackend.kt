@@ -91,9 +91,15 @@ class LocalBackend(private val context: Context) : DeckBackend {
                 c.setMediaItems(newTracks.map(::toMediaItem), startIndex ?: 0, 0L)
                 c.prepare()
             } else {
-                // Refresh titles from tags without disturbing playback.
-                newTracks.forEachIndexed { i, t ->
-                    if (i < c.mediaItemCount && i != c.currentMediaItemIndex) c.replaceMediaItem(i, toMediaItem(t))
+                // Refresh titles from tags without disturbing playback. Two bulk replacements around
+                // the current song: one replaceMediaItem per song rebuilt the whole timeline once per
+                // song (thousands of times on a big library), keeping PLAY waiting behind them.
+                val cur = c.currentMediaItemIndex.coerceIn(0, newTracks.size - 1)
+                if (cur > 0) {
+                    c.replaceMediaItems(0, cur, newTracks.subList(0, cur).map(::toMediaItem))
+                }
+                if (cur < newTracks.size - 1) {
+                    c.replaceMediaItems(cur + 1, newTracks.size, newTracks.subList(cur + 1, newTracks.size).map(::toMediaItem))
                 }
             }
             publish()
