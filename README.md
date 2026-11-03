@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/hero.png" alt="Foldman: a walkman for foldables, showing the cover-screen player and the unfolded deck" width="100%">
+  <img src="docs/media/hero-fork.jpg" alt="Foldman: a walkman for foldables, showing the cover-screen player and the unfolded deck" width="100%">
 </p>
 
 > **Modified fork.** This is an unofficial fork of [deveshrai/Foldman](https://github.com/deveshrai/Foldman) (Apache 2.0), adapted for the Samsung Galaxy Z Fold. Changes on top of the original:
@@ -50,28 +50,16 @@ Every key is a latching mechanism, and the cassette behind the window follows it
 
 The keys click (the sounds are synthesised, not samples) and buzz under your thumb. The tape counter is geared to the take-up reel, the VU needles follow the real audio on local files, and the tape packs on the reels show how far through the song you are.
 
-## Folded, unfolded, half-open
+## Folded and unfolded
 
 Foldman reads the hinge and rebuilds itself for each posture, without stopping the music.
 
 <table>
   <tr>
-    <td align="center" width="34%"><img src="docs/media/cover-transport.gif" alt="Cover screen: the upright player cycling through play, fast-forward, stop, pause and rewind" width="100%"><br><b>Folded</b><br><sub>An upright portable in blue enamel, edge to edge. The tape stands on end behind a small window; keys, volume and phones socket run down the silver side strip.</sub></td>
-    <td align="center" width="66%"><img src="docs/media/unfolded.png" alt="Unfolded: library panel, the deck with VU meters, counter and keys, and the now-playing panel" width="100%"><br><b>Unfolded</b><br><sub>The player lies down as a deck: twin VU meters, a mechanical counter, CLICK and HAPTIC switches. Your library is above it, and the cover, up next and liner notes are below.</sub></td>
+    <td align="center" width="34%"><img src="docs/media/cover-fork.jpg" alt="Cover screen: the upright player, PHONES LED green with headphones connected" width="100%"><br><b>Folded</b><br><sub>An upright portable. The tape stands on end behind a small window; keys, volume and the PHONES socket run down the silver side strip. The LED turns green when headphones are connected.</sub></td>
+    <td align="center" width="66%"><img src="docs/media/unfolded-fork.jpg" alt="Unfolded: the album rack on the left, the player on the right" width="100%"><br><b>Unfolded</b><br><sub>The library is an album rack on the left: tap an album to open it, slide an album or a tape to the right to load it. The player stays on the right.</sub></td>
   </tr>
 </table>
-
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="docs/media/tabletop.png" alt="Half-open on a table: the deck on the top half and the library on the bottom half" width="100%"><br><b>Half-open (Flex mode)</b><br><sub>Stand it on a table: the deck takes the top half, the library the bottom.</sub></td>
-    <td align="center" width="50%"><img src="docs/media/unfolded-landscape.png" alt="Unfolded in landscape on a real Galaxy Z Fold" width="100%"><br><b>Unfolded, landscape</b><br><sub>On a real Z Fold 8.</sub></td>
-  </tr>
-</table>
-
-<p align="center">
-  <img src="docs/media/deck.gif" alt="The deck on a real Z Fold: VU needles swinging, counter rolling, keys latching" width="880">
-  <br><sub>The deck on a real Z Fold 8: needles swinging, the counter rolling, FF winding the tape on.</sub>
-</p>
 
 ## Three ways to load a tape
 
