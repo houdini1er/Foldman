@@ -2,6 +2,14 @@
   <img src="docs/media/hero.png" alt="Foldman: a walkman for foldables, showing the cover-screen player and the unfolded deck" width="100%">
 </p>
 
+> **Modified fork.** This is an unofficial fork of [deveshrai/Foldman](https://github.com/deveshrai/Foldman) (Apache 2.0), adapted for the Samsung Galaxy Z Fold. Changes on top of the original:
+> - **Large libraries:** PLAY no longer stalls with thousands of songs (bulk tag refresh instead of one timeline rebuild per song).
+> - **Unfolded layout:** the library is a rack of albums (folders) on the left, the player on the right. Tap an album to open it, slide an album or a tape to the right to play it.
+> - **Folded screen:** dark slate player; the tape follows the hinge angle and ejects as the phone opens (playback stops, then resumes when you close it).
+> - **PHONES** lights up green when headphones are connected.
+>
+> Debug-signed builds only; uninstall the official Foldman before installing. Not tested beyond one Z Fold. Original project and credits: deveshrai.
+
 <p align="center">
   <a href="https://github.com/deveshrai/Foldman/releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/deveshrai/Foldman?label=download&color=f0722b&style=for-the-badge"></a>
   <a href="LICENSE"><img alt="Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-2f6fb5?style=for-the-badge"></a>
