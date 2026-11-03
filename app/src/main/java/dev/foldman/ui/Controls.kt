@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -339,12 +340,48 @@ fun MicGrille(modifier: Modifier = Modifier) {
 }
 
 /** Headphone socket: decoration, but a walkman without one would look wrong. */
+/** True while headphones (wired, USB or Bluetooth) are connected to the phone. */
+@Composable
+fun rememberHeadphonesConnected(): Boolean {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var connected by remember { mutableStateOf(false) }
+    androidx.compose.runtime.DisposableEffect(context) {
+        val am = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        fun check() {
+            connected = am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS).any {
+                when (it.type) {
+                    android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                    android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                    android.media.AudioDeviceInfo.TYPE_USB_HEADSET,
+                    android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                    android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                    android.media.AudioDeviceInfo.TYPE_BLE_HEADSET,
+                    android.media.AudioDeviceInfo.TYPE_HEARING_AID -> true
+                    else -> false
+                }
+            }
+        }
+        val callback = object : android.media.AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(added: Array<out android.media.AudioDeviceInfo>?) = check()
+            override fun onAudioDevicesRemoved(removed: Array<out android.media.AudioDeviceInfo>?) = check()
+        }
+        check()
+        am.registerAudioDeviceCallback(callback, null)
+        onDispose { am.unregisterAudioDeviceCallback(callback) }
+    }
+    return connected
+}
+
+/** The headphone jack; its ring lights up green while headphones are connected. */
 @Composable
 fun PhonesJack(modifier: Modifier = Modifier) {
+    val plugged = rememberHeadphonesConnected()
+    val green = Color(0xFF3DDC84)
     Canvas(modifier) {
         val r = size.minDimension / 2f
+        if (plugged) drawCircle(Brush.radialGradient(listOf(green.copy(alpha = 0.6f), Color.Transparent), center, r * 1.5f), r * 1.5f)
         drawCircle(Brush.radialGradient(listOf(Color(0xFFE6E8EB), Color(0xFF8E9196)), center, r), r)
         drawCircle(Color(0xFF050505), r * 0.62f)
-        drawCircle(Color(0xFF2A2B2E), r * 0.3f)
+        drawCircle(if (plugged) green else Color(0xFF2A2B2E), r * 0.3f)
     }
 }
