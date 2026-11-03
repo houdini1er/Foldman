@@ -102,6 +102,17 @@ fun TapeWindow(ui: DeckUi, anim: DeckAnimations, modifier: Modifier = Modifier, 
             }
         }
         clipPath(innerPath) {
+            // Empty bay, as on the reference: the window invites you to load a tape.
+            if (vertical && slide > 0.35f) {
+                val a = ((slide - 0.35f) / 0.5f).coerceIn(0f, 1f) * 0.7f
+                val lay = measurer.measure(
+                    "OPEN TO LOAD",
+                    TextStyle(color = Color.White.copy(alpha = a), fontSize = (size.height * 0.075f).toSp(), fontWeight = FontWeight.Medium, letterSpacing = (size.height * 0.012f).toSp()),
+                )
+                rotate(90f, Offset(size.width / 2f, size.height / 2f)) {
+                    drawText(lay, topLeft = Offset((size.width - lay.size.width) / 2f, (size.height - lay.size.height) / 2f))
+                }
+            }
             // Smoked glass: tint, a long diagonal reflection and a soft top glare.
             drawRect(Color(0xFF26303C).copy(alpha = 0.22f))
             drawPath(

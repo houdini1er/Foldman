@@ -255,7 +255,7 @@ fun FoldmanScreen(
                                 FoldMemory.resumeOnClose = false
                             }
                         } else if (opened && postureNow != Posture.Unfolded && (justOpened || feel.transport == Transport.STOPPED)) {
-                            val target = (angle / 45f).coerceIn(0f, 1f) * 0.8f
+                            val target = (angle / 45f).coerceIn(0f, 1f) * 1f
                             scope.launch { anim.insert.animateTo(target, tween(450, easing = FastOutSlowInEasing)) }
                         }
                     }
@@ -276,7 +276,7 @@ fun FoldmanScreen(
                         anim.insert.snapTo(0f)
                     }
                     if (feel.haptics && !FoldMemory.hasHinge) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    if (anim.insert.value < 0.8f) anim.insert.animateTo(0.8f, tween(600, easing = FastOutSlowInEasing))
+                    if (anim.insert.value < 1f) anim.insert.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
                 } else if (before != null && before != Posture.Cover && posture == Posture.Cover && !FoldMemory.hasHinge) {
                     anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
                     if (FoldMemory.resumeOnClose) deck.play()
@@ -285,7 +285,7 @@ fun FoldmanScreen(
             }
             // Pressing PLAY (or any key that moves the tape) on a half-ejected tape seats it first.
             LaunchedEffect(ui.transport) {
-                if (ui.transport != Transport.STOPPED && anim.insert.value > 0.01f && anim.insert.value < 1f) {
+                if (ui.transport != Transport.STOPPED && anim.insert.value > 0.01f) {
                     anim.insert.animateTo(0f, spring(dampingRatio = 0.62f, stiffness = 220f))
                 }
             }
