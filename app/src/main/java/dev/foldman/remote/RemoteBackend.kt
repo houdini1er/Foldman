@@ -33,7 +33,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Plays YT Music or Apple Music by driving that app's own media session: Foldman is the deck,
+ * Plays YT Music, Apple Music or Spotify by driving that app's own media session: Foldman is the deck,
  * the streaming app is the tape. Needs notification access ([MediaListenerService]) to see the session.
  */
 class RemoteBackend(private val context: Context, source: Source) : DeckBackend {

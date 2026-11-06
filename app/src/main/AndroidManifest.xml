@@ -11,6 +11,7 @@
     <queries>
         <package android:name="com.google.android.apps.youtube.music" />
         <package android:name="com.apple.android.music" />
+        <package android:name="com.spotify.music" />
     </queries>
 
     <!-- allowBackup / dataExtractionRules: the settings include the Apple Music user token, so
@@ -69,7 +70,7 @@
             tools:ignore="MissingClass"
             tools:node="merge" />
 
-        <!-- Notification access is what lets Foldman see YT Music's and Apple Music's media sessions. -->
+        <!-- Notification access is what lets Foldman see YT Music's, Apple Music's and Spotify's media sessions. -->
         <service
             android:name=".remote.MediaListenerService"
             android:exported="true"

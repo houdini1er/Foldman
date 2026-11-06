@@ -8,6 +8,7 @@ All notable changes to Foldman. Versions follow [semantic versioning](https://se
 - **PLAY did nothing with a large local library** (about 4000 songs): the tag refresh rebuilt the timeline once per song. It now uses two bulk replacements.
 
 ### Added
+- **Spotify** as a source: Foldman drives the Spotify app through its media session (keys, skip, queue, artwork), like YT Music. Needs notification access, no developer key.
 - Unfolded layout with an album rack (folders) on the left and the player on the right; slide an album or tape to the right to load it.
 - Dark slate folded screen; the tape ejects following the hinge angle as the phone opens, and playback pauses then resumes on close.
 - PHONES jack lights up green when headphones are connected.

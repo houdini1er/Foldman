@@ -89,6 +89,7 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
     private val remotes = mapOf(
         Source.YT_MUSIC to RemoteBackend(app, Source.YT_MUSIC),
         Source.APPLE_MUSIC to RemoteBackend(app, Source.APPLE_MUSIC),
+        Source.SPOTIFY to RemoteBackend(app, Source.SPOTIFY),
     )
 
     private val _ui = MutableStateFlow(DeckUi())
