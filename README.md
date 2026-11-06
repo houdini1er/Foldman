@@ -72,8 +72,8 @@ Foldman reads the hinge and rebuilds itself for each posture, without stopping t
 | ▶️ | **YT Music** (and Apple Music without MusicKit) | Foldman drives the app's own media session: the keys, REW/FF, skip, artwork on the label and the queue all work on it, and you pick what to play in the app itself. |
 
 <p align="center">
-  <img src="docs/media/spotify-fork.jpg" alt="The tape shelf with Local folder, YT Music, Apple Music and Spotify; Spotify is in the deck and playing" width="360"><br>
-  <sub>Spotify in the deck: title, artist, cover and time come from the Spotify app; the keys drive it.</sub>
+  <img src="docs/media/spotify-fork.jpg" alt="Unfolded: the cassette rack with the Spotify source selected on the left, the Spotify tape playing in the deck on the right" width="720"><br>
+  <sub>Unfolded, Spotify in the deck: the title, artist and cover on the label come from the Spotify app; the keys drive it, and you pick songs in Spotify.</sub>
 </p>
 
 The album art is printed on the cassette label, so you only see it around the reels, the way you would on a real tape. Its colours also tint the paper strip with the handwritten title.
