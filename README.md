@@ -7,11 +7,12 @@
 > - **Unfolded layout:** the library is a rack of albums (folders) on the left, the player on the right. Tap an album to open it, slide an album or a tape to the right to play it.
 > - **Folded screen:** dark slate player; the tape follows the hinge angle and ejects as the phone opens (playback stops, then resumes when you close it).
 > - **PHONES** lights up green when headphones are connected.
+> - **Spotify** as a source (new in v1.1): Foldman drives the Spotify app's media session, like YT Music. See [Four ways to load a tape](#four-ways-to-load-a-tape).
 >
 > Debug-signed builds only; uninstall the official Foldman before installing. Not tested beyond one Z Fold. Original project and credits: deveshrai.
 
 <p align="center">
-  <a href="https://github.com/deveshrai/Foldman/releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/deveshrai/Foldman?label=download&color=f0722b&style=for-the-badge"></a>
+  <a href="https://github.com/houdini1er/Foldman/releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/houdini1er/Foldman?label=download&color=f0722b&style=for-the-badge"></a>
   <a href="LICENSE"><img alt="Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-2f6fb5?style=for-the-badge"></a>
   <img alt="Android 11+" src="https://img.shields.io/badge/Android-11%2B-3d9c5a?style=for-the-badge&logo=android&logoColor=white">
   <img alt="Kotlin and Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Compose-7f52ff?style=for-the-badge&logo=kotlin&logoColor=white">
@@ -61,19 +62,20 @@ Foldman reads the hinge and rebuilds itself for each posture, without stopping t
   </tr>
 </table>
 
-## Three ways to load a tape
+## Four ways to load a tape
 
 | | Source | How it works |
 | --- | --- | --- |
 | 🗂 | **Local folder** | Pick any folder on the phone. MP3, FLAC, M4A, OGG, Opus, WAV and more play through Media3 in the background, with the system media controls and headphone keys. Album art comes from the files' embedded art or a `cover.jpg` / `folder.png` beside them, and each sub-folder becomes an album. |
 | 🍎 | **Apple Music** | Sign in through Apple's MusicKit, browse your library playlists inside Foldman, and stream them in-app. Apple's player runs in its own process: if Apple's native code crashes, the music picks up again on the same song a few seconds later, and Foldman never closes. |
-| ▶️ | **YT Music**, **Spotify** (and Apple Music without MusicKit) | Foldman drives the app's own media session: the keys, REW/FF, skip, artwork on the label and the queue all work on it, and you pick what to play in the app itself. |
+| 🟢 | **Spotify** (new in this fork) | Foldman drives the Spotify app's own media session, like YT Music: play, pause, REW/FF, skip (AMS), the title and cover on the cassette label, and the queue. You pick what to play in Spotify itself; Foldman can't browse your Spotify library. Needs notification access, and no Spotify developer key. If the music cuts out when Spotify is in the background, set Spotify's battery to *Unrestricted* (Settings → Apps → Spotify → Battery). |
+| ▶️ | **YT Music** (and Apple Music without MusicKit) | Foldman drives the app's own media session: the keys, REW/FF, skip, artwork on the label and the queue all work on it, and you pick what to play in the app itself. |
 
 The album art is printed on the cassette label, so you only see it around the reels, the way you would on a real tape. Its colours also tint the paper strip with the handwritten title.
 
 ## Install
 
-1. Download the **`Foldman-…-release.apk`** from the [latest release](https://github.com/deveshrai/Foldman/releases/latest) and open it on your phone. You'll need to allow installs from your browser or file manager.
+1. Download the **`Foldman-…-debug.apk`** from the [latest release of this fork](https://github.com/houdini1er/Foldman/releases/latest) (the official app's releases are at [deveshrai/Foldman](https://github.com/deveshrai/Foldman/releases/latest)) and open it on your phone. You'll need to allow installs from your browser or file manager.
 2. **For YT Music or Spotify:** open Foldman → YT Music (or Spotify) → *Grant access*. Android only shares other apps' playback with apps that have notification access. If the switch is greyed out, go to **App info → ⋮ → Allow restricted settings** first; Android does this for apps installed outside the Play Store.
 3. **For Spotify:** install the Spotify app and sign in, then pick a source in Foldman → Spotify. Foldman controls the Spotify app (play, pause, skip, queue, artwork); choose what to play in Spotify itself. No Spotify developer account or key is needed.
 4. **For Apple Music:** install Apple Music and sign in with a subscribed Apple ID, then choose Foldman → Apple Music → *Sign in to Apple Music*.
@@ -88,7 +90,7 @@ cd Foldman
 ./gradlew :app:assembleDebug
 ```
 
-You'll need JDK 17+ and the Android SDK (compile SDK 37). The APK lands in `app/build/outputs/apk/debug/`. With no extra setup, local files and YT Music work fully, and Apple Music runs through media-session control.
+You'll need JDK 17+ and the Android SDK (compile SDK 37). The APK lands in `app/build/outputs/apk/debug/`. With no extra setup, local files, YT Music and Spotify work fully, and Apple Music runs through media-session control.
 
 <details>
 <summary><b>Optional: Apple Music inside Foldman (MusicKit)</b></summary>
@@ -168,4 +170,4 @@ Foldman is released under the [Apache License 2.0](LICENSE). You can use, change
 
 Copyright © 2026 [Devesh Rai](https://github.com/deveshrai).
 
-<sub>Foldman is an independent project, not affiliated with or endorsed by Sony, Apple, Google or Samsung. "Walkman" is a trademark of Sony; Apple Music and MusicKit are trademarks of Apple; YouTube Music is a trademark of Google; Galaxy Z Fold is a trademark of Samsung. Release builds include Apple's MusicKit for Android SDK, used under the Apple Developer Program License Agreement; it is not part of this repository's source.</sub>
+<sub>Foldman is an independent project, not affiliated with or endorsed by Sony, Apple, Google, Spotify or Samsung. "Walkman" is a trademark of Sony; Apple Music and MusicKit are trademarks of Apple; YouTube Music is a trademark of Google; Spotify is a trademark of Spotify AB; Galaxy Z Fold is a trademark of Samsung. Release builds include Apple's MusicKit for Android SDK, used under the Apple Developer Program License Agreement; it is not part of this repository's source.</sub>
