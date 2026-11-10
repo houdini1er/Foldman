@@ -15,6 +15,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.DisposableEffect
+import android.view.WindowManager
 import androidx.compose.runtime.remember
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
@@ -23,6 +25,7 @@ import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
 import dev.foldman.deck.DeckViewModel
 import dev.foldman.deck.Source
+import dev.foldman.deck.Transport
 import dev.foldman.ui.FoldmanScreen
 
 class MainActivity : ComponentActivity() {
@@ -49,6 +52,14 @@ class MainActivity : ComponentActivity() {
                 if (Build.VERSION.SDK_INT >= 33 &&
                     ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                 ) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            // Keep the screen awake while a tape is running (play, fast-forward, rewind).
+            val transport = vm.ui.collectAsStateWithLifecycle().value.transport
+            val keepAwake = transport == Transport.PLAYING ||
+                transport == Transport.REWINDING || transport == Transport.FAST_FORWARDING
+            DisposableEffect(keepAwake) {
+                if (keepAwake) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                onDispose { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
             }
             MaterialTheme(colorScheme = darkColorScheme()) {
                 FoldmanScreen(
