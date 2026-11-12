@@ -9,6 +9,7 @@ All notable changes to Foldman. Versions follow [semantic versioning](https://se
 
 ### Added
 - **Spotify** as a source: Foldman drives the Spotify app through its media session (keys, skip, queue, artwork), like YT Music. Needs notification access, no developer key.
+- The screen stays awake while a tape is playing in Foldman; it sleeps normally when paused, stopped, or when Foldman isn't on screen.
 - Unfolded layout with an album rack (folders) on the left and the player on the right; slide an album or tape to the right to load it.
 - Dark slate folded screen; the tape ejects following the hinge angle as the phone opens, and playback pauses then resumes on close.
 - PHONES jack lights up green when headphones are connected.

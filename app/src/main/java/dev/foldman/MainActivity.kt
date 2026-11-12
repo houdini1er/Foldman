@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -15,8 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.DisposableEffect
-import android.view.WindowManager
 import androidx.compose.runtime.remember
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
@@ -26,6 +25,8 @@ import androidx.window.layout.WindowLayoutInfo
 import dev.foldman.deck.DeckViewModel
 import dev.foldman.deck.Source
 import dev.foldman.deck.Transport
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import dev.foldman.ui.FoldmanScreen
 
 class MainActivity : ComponentActivity() {
@@ -35,6 +36,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
+            // Keep the screen awake only while a tape is playing; the flag also lapses whenever
+            // Foldman isn't the visible window.
+            val playing by remember { vm.ui.map { it.transport == Transport.PLAYING }.distinctUntilChanged() }
+                .collectAsStateWithLifecycle(initialValue = false)
+            LaunchedEffect(playing) {
+                if (playing) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
             val windowLayout by remember { WindowInfoTracker.getOrCreate(this).windowLayoutInfo(this) }
                 .collectAsStateWithLifecycle<WindowLayoutInfo?>(initialValue = null)
             val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
@@ -52,14 +61,6 @@ class MainActivity : ComponentActivity() {
                 if (Build.VERSION.SDK_INT >= 33 &&
                     ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                 ) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-            // Keep the screen awake while a tape is running (play, fast-forward, rewind).
-            val transport = vm.ui.collectAsStateWithLifecycle().value.transport
-            val keepAwake = transport == Transport.PLAYING ||
-                transport == Transport.REWINDING || transport == Transport.FAST_FORWARDING
-            DisposableEffect(keepAwake) {
-                if (keepAwake) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                onDispose { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
             }
             MaterialTheme(colorScheme = darkColorScheme()) {
                 FoldmanScreen(
