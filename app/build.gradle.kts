@@ -88,6 +88,8 @@ dependencies {
 
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-session:1.11.1")
+    // Some web radios stream over HLS (.m3u8).
+    implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
     implementation("androidx.window:window:1.5.1")
     implementation("androidx.palette:palette-ktx:1.0.0")
 

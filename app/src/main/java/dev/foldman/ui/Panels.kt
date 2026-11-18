@@ -120,6 +120,11 @@ fun LibraryBand(ui: DeckUi, actions: ShelfActions, onPlayQueue: (Long) -> Unit, 
                     Spacer(Modifier.height(8.dp))
                     AppleBrowser(ui.apple, actions.apple, fallback = { RemoteState(ui, actions, showHeader = false) })
                 }
+                Source.RADIO -> {
+                    Text("Stations", style = Header)
+                    Spacer(Modifier.height(8.dp))
+                    RadioBrowser(ui.radio, actions.radio)
+                }
                 else -> RemoteState(ui, actions)
             }
         }
@@ -132,7 +137,11 @@ fun LibraryBand(ui: DeckUi, actions: ShelfActions, onPlayQueue: (Long) -> Unit, 
 }
 
 private fun statusLine(ui: DeckUi): String = when (val s = ui.status) {
-    SourceStatus.Ready -> if (ui.source == Source.LOCAL) "${ui.tracks.size} songs" else "Connected"
+    SourceStatus.Ready -> when (ui.source) {
+        Source.LOCAL -> "${ui.tracks.size} songs"
+        Source.RADIO -> if (ui.radio.onAir != null) "On air" else "${ui.radio.favourites.size} stations"
+        else -> "Connected"
+    }
     SourceStatus.NeedsFolder -> "Choose a folder"
     is SourceStatus.Scanning -> "Scanning… ${s.found}"
     SourceStatus.EmptyFolder -> "No music found"
@@ -237,6 +246,7 @@ private fun QueueList(ui: DeckUi, onPlay: (Long) -> Unit) {
         val empty = when {
             ui.source == Source.LOCAL -> "Nothing loaded"
             ui.source == Source.APPLE_MUSIC && ui.apple.sdkPlayback -> "Pick a playlist to load the queue"
+            ui.source == Source.RADIO -> "Pick a station: AMS then steps through its list"
             else -> "This app doesn't share its queue"
         }
         Text(empty, style = Sub)
@@ -329,7 +339,7 @@ fun NowPlayingBand(ui: DeckUi, onPlayQueue: (Long) -> Unit, modifier: Modifier =
             val details = buildList {
                 add(ui.source.label)
                 if (ui.trackCount > 0) add("Track ${ui.trackIndex + 1} of ${ui.trackCount}")
-                add("${formatTime(ui.positionMs)} / ${formatTime(ui.durationMs)}")
+                add(timeLine(ui))
             }
             details.forEach { Text(it, style = Sub) }
             Spacer(Modifier.weight(1f))
@@ -503,6 +513,11 @@ fun TapeRack(
                     Text(ui.apple.openPlaylist?.let { "Playlist" } ?: "Playlists", style = Header)
                     Spacer(Modifier.height(8.dp))
                     AppleBrowser(ui.apple, actions.apple, fallback = { RemoteState(ui, actions, showHeader = false) })
+                }
+                ui.source == Source.RADIO -> Column {
+                    Text("Stations", style = Header)
+                    Spacer(Modifier.height(8.dp))
+                    RadioBrowser(ui.radio, actions.radio)
                 }
                 else -> Column { RemoteState(ui, actions) }
             }

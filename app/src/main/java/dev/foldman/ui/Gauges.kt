@@ -145,7 +145,7 @@ private class Needles {
 fun VuMeter(transport: Transport, source: Source, modifier: Modifier = Modifier, channel: Int? = null) {
     val needles = remember { Needles() }
     val active by rememberUpdatedState(transport == Transport.PLAYING)
-    val isLocal by rememberUpdatedState(source == Source.LOCAL)
+    val isLocal by rememberUpdatedState(source == Source.LOCAL || source == Source.RADIO)
     val measurer = rememberTextMeasurer()
     LaunchedEffect(needles) {
         var last = 0L

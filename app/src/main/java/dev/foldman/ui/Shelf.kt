@@ -55,6 +55,7 @@ class ShelfActions(
     val openApp: () -> Unit,
     val installApp: (Source) -> Unit,
     val apple: AppleActions,
+    val radio: RadioActions,
 )
 
 /**
@@ -130,7 +131,7 @@ private fun JCard(ui: DeckUi, actions: ShelfActions, modifier: Modifier) {
                 if (ui.artist.isNotBlank()) Text(ui.artist, style = Hand.copy(fontSize = 18.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (ui.album.isNotBlank()) Text(ui.album, style = Typed.copy(fontSize = 11.sp, color = DeckColors.Ink.copy(alpha = 0.6f)), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
-                Text("${formatTime(ui.positionMs)} / ${formatTime(ui.durationMs)}", style = Typed.copy(fontSize = 11.sp, color = DeckColors.Ink.copy(alpha = 0.6f)))
+                Text(timeLine(ui), style = Typed.copy(fontSize = 11.sp, color = DeckColors.Ink.copy(alpha = 0.6f)))
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -141,6 +142,7 @@ private fun JCard(ui: DeckUi, actions: ShelfActions, modifier: Modifier) {
         when (ui.source) {
             Source.LOCAL -> LocalCard(ui, actions)
             Source.APPLE_MUSIC -> AppleBrowser(ui.apple, actions.apple, fallback = { RemoteCard(ui, actions) }, light = true)
+            Source.RADIO -> RadioBrowser(ui.radio, actions.radio, light = true)
             else -> RemoteCard(ui, actions)
         }
     }
@@ -276,3 +278,8 @@ fun formatTime(ms: Long): String {
     val s = ms / 1000
     return "%d:%02d".format(s / 60, s % 60)
 }
+
+/** "1:23 / 4:56", or "LIVE · 1:23" for a broadcast, which has no length. */
+fun timeLine(ui: DeckUi): String =
+    if (ui.source == Source.RADIO) "LIVE · ${formatTime(ui.positionMs)}"
+    else "${formatTime(ui.positionMs)} / ${formatTime(ui.durationMs)}"

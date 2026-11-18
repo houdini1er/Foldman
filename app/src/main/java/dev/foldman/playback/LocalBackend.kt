@@ -16,6 +16,7 @@ import dev.foldman.deck.DeckBackend
 import dev.foldman.deck.LocalTrack
 import dev.foldman.deck.NowPlaying
 import dev.foldman.deck.SourceStatus
+import dev.foldman.radio.RadioBackend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -84,6 +85,9 @@ class LocalBackend(private val context: Context) : DeckBackend {
         tracks = newTracks
         libraryStatus = if (newTracks.isEmpty()) SourceStatus.EmptyFolder else SourceStatus.Ready
         withController { c ->
+            // The radio is on air (reopened mid-broadcast): leave it; the tape goes back in when
+            // the local folder is selected again (refresh) or played.
+            if (startIndex == null && RadioBackend.holdsRadio(c)) return@withController publish()
             val sameQueue = c.mediaItemCount == newTracks.size &&
                 newTracks.isNotEmpty() &&
                 c.getMediaItemAt(0).mediaId == newTracks[0].uri.toString()
@@ -108,6 +112,7 @@ class LocalBackend(private val context: Context) : DeckBackend {
     }
 
     fun playTrack(index: Int) = withController { c ->
+        reloadIfRadio(c)
         if (index !in 0 until c.mediaItemCount) return@withController
         c.seekTo(index, 0L)
         c.prepare()
@@ -126,7 +131,7 @@ class LocalBackend(private val context: Context) : DeckBackend {
 
     private fun publish() {
         val c = controller
-        if (c == null || c.mediaItemCount == 0) {
+        if (c == null || c.mediaItemCount == 0 || RadioBackend.holdsRadio(c)) {
             _state.value = BackendState(status = libraryStatus)
             return
         }
@@ -174,8 +179,21 @@ class LocalBackend(private val context: Context) : DeckBackend {
         }
     }
 
-    override fun positionMs(): Long = controller?.currentPosition ?: 0L
+    /** Puts the folder's tape back in the player if the radio took it over (keeps it paused). */
+    private fun reloadIfRadio(c: MediaController) {
+        if (!RadioBackend.holdsRadio(c) || tracks.isEmpty()) return
+        c.setMediaItems(tracks.map(::toMediaItem), 0, 0L)
+        c.prepare()
+    }
+
+    override fun refresh() = withController { c ->
+        reloadIfRadio(c)
+        publish()
+    }
+
+    override fun positionMs(): Long = controller?.takeIf { !RadioBackend.holdsRadio(it) }?.currentPosition ?: 0L
     override fun play() = withController { c ->
+        reloadIfRadio(c)
         if (c.playbackState == Player.STATE_ENDED) c.seekTo(0, 0L)
         if (c.playbackState == Player.STATE_IDLE) c.prepare()
         c.play()

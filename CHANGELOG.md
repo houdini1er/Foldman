@@ -8,6 +8,7 @@ All notable changes to Foldman. Versions follow [semantic versioning](https://se
 - **PLAY did nothing with a large local library** (about 4000 songs): the tag refresh rebuilt the timeline once per song. It now uses two bulk replacements.
 
 ### Added
+- **Web radio** as a source: eight French stations to start with, search across the Radio Browser directory (about 50 000 stations) or paste a stream URL, and star stations to keep them. The ICY song title shows on the label and in the notification; AMS steps between stations, REW/FF are off on a live stream. Plays through Foldman's own player, so background play, the media notification and the VU meters all work.
 - **Spotify** as a source: Foldman drives the Spotify app through its media session (keys, skip, queue, artwork), like YT Music. Needs notification access, no developer key.
 - The screen stays awake while a tape is playing in Foldman; it sleeps normally when paused, stopped, or when Foldman isn't on screen.
 - Unfolded layout with an album rack (folders) on the left and the player on the right; slide an album or tape to the right to load it.

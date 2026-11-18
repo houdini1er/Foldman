@@ -307,7 +307,7 @@ private fun DrawScope.drawLabel(ui: DeckUi, palette: LabelPalette, measurer: Tex
     text(line, 17.5f, 13.0f, 4.6f, 71f, hand)
 
     val tag = TextStyle(fontFamily = FontFamily.SansSerif, color = if (art != null) Color.White else ink, fontWeight = FontWeight.Black)
-    text(when (ui.source) { Source.LOCAL -> "FM 60"; Source.YT_MUSIC -> "YT ∞"; Source.APPLE_MUSIC -> "AM ∞"; Source.SPOTIFY -> "SP ∞" }, 79f, 44.2f, 2.6f, 14f, tag)
+    text(when (ui.source) { Source.LOCAL -> "FM 60"; Source.YT_MUSIC -> "YT ∞"; Source.APPLE_MUSIC -> "AM ∞"; Source.SPOTIFY -> "SP ∞"; Source.RADIO -> "FM LIVE" }, 79f, 44.2f, 2.6f, 14f, tag)
     text("TYPE I  NORMAL", 12f, 44.6f, 2.2f, 30f, tag.copy(fontWeight = FontWeight.Bold))
 }
 
@@ -316,6 +316,7 @@ private fun placeholderTitle(ui: DeckUi) = when (ui.source) {
     Source.YT_MUSIC -> "YT Music"
     Source.APPLE_MUSIC -> "Apple Music"
     Source.SPOTIFY -> "Spotify"
+    Source.RADIO -> "Web radio"
 }
 
 /** Centre-crops [image] to fill [dst], like a printed label. */

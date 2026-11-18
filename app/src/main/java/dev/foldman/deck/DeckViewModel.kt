@@ -22,6 +22,8 @@ import dev.foldman.apple.ApplePlaylist
 import dev.foldman.apple.MusicKit
 import dev.foldman.playback.LocalBackend
 import dev.foldman.playback.LocalLibrary
+import dev.foldman.radio.RadioBackend
+import dev.foldman.radio.RadioBrowser
 import dev.foldman.remote.RemoteBackend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -65,6 +67,7 @@ data class DeckUi(
     val keySounds: Boolean = true,
     val haptics: Boolean = true,
     val apple: AppleUi = AppleUi(),
+    val radio: RadioUi = RadioUi(),
 ) {
     /** How far through the tape we are: the left reel empties into the right one as this grows. */
     val progress: Float get() = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
@@ -91,6 +94,11 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
         Source.APPLE_MUSIC to RemoteBackend(app, Source.APPLE_MUSIC),
         Source.SPOTIFY to RemoteBackend(app, Source.SPOTIFY),
     )
+    private val radio = RadioBackend(app).also { it.connect() }
+    private val radioUi = MutableStateFlow(
+        RadioUi(favourites = prefs.getString(KEY_RADIO_FAVS, null)?.let(RadioBrowser::fromJson) ?: RadioBrowser.defaults),
+    )
+    private var radioJob: Job? = null
 
     private val _ui = MutableStateFlow(DeckUi())
     val ui: StateFlow<DeckUi> = _ui.asStateFlow()
@@ -102,6 +110,7 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
         get() = when (source) {
             Source.LOCAL -> local
             Source.APPLE_MUSIC -> appleKit ?: remotes.getValue(source)
+            Source.RADIO -> radio
             else -> remotes.getValue(source)
         }
 
@@ -126,6 +135,12 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
     private var artSource: Any? = null
 
     init {
+        // PLAY on the radio with nothing tuned: the last station heard, among the saved ones.
+        radio.fallback = {
+            val favs = radioUi.value.favourites.ifEmpty { RadioBrowser.defaults }
+            val last = prefs.getString(KEY_RADIO_LAST, null)
+            favs to favs.indexOfFirst { it.url == last }.coerceAtLeast(0)
+        }
         prefs.getString(KEY_FOLDER, null)?.let { loadFolder(Uri.parse(it), firstLoad = true) }
         syncAppleTokens()
         if (apple.value.signedIn) loadApplePlaylists()
@@ -183,7 +198,12 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
     /** AMS back: to the top of this song, or the previous one when already near its start. */
     fun previous() {
         if (winding != 0) finishWinding()
-        if (backend.positionMs() > 3000 || !_ui.value.hasPrevious) backend.seekTo(0) else backend.skipToPrevious()
+        when {
+            // On the radio AMS steps through the stations; a live stream has no "top of the song".
+            source == Source.RADIO -> backend.skipToPrevious()
+            backend.positionMs() > 3000 || !_ui.value.hasPrevious -> backend.seekTo(0)
+            else -> backend.skipToPrevious()
+        }
         tick()
     }
 
@@ -196,6 +216,8 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
     private fun startWinding(direction: Int) {
         if (winding == direction) return
         if (_ui.value.status != SourceStatus.Ready) return
+        // A live broadcast can't be wound.
+        if (source == Source.RADIO) return
         if (winding == 0) {
             backend.pause()
             windPosition = backend.positionMs()
@@ -356,6 +378,76 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit { putBoolean(KEY_HAPTICS, on) }
         tick()
     }
+
+    // region Web radio
+
+    /** Tunes to [index] in [stations] (the saved ones or a search's results); AMS then steps through that list. */
+    fun playStation(stations: List<RadioStation>, index: Int) {
+        val station = stations.getOrNull(index) ?: return
+        selectSource(Source.RADIO)
+        stopped = false
+        playRequestedAt = SystemClock.elapsedRealtime()
+        prefs.edit { putString(KEY_RADIO_LAST, station.url) }
+        radioUi.value = radioUi.value.copy(message = null)
+        radio.playStations(stations, index)
+        tick()
+    }
+
+    /**
+     * Searches the Radio Browser directory by name. A typed stream address (http…) is played as is
+     * and can then be saved like any station.
+     */
+    fun searchRadio(query: String) {
+        val q = query.trim()
+        if (q.isEmpty()) return closeRadioSearch()
+        radioJob?.cancel()
+        if (q.startsWith("http://", ignoreCase = true) || q.startsWith("https://", ignoreCase = true)) {
+            val station = RadioStation(name = Uri.parse(q).host ?: q, url = q, info = "Stream address")
+            radioUi.value = radioUi.value.copy(query = q, results = listOf(station), searching = false, message = null)
+            playStation(listOf(station), 0)
+            return
+        }
+        radioUi.value = radioUi.value.copy(query = q, results = emptyList(), searching = true, message = null)
+        tick()
+        radioJob = viewModelScope.launch {
+            val result = try {
+                Result.success(RadioBrowser.search(q))
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+            if (radioUi.value.query != q) return@launch
+            val found = result.getOrNull()
+            radioUi.value = radioUi.value.copy(
+                results = found.orEmpty(),
+                searching = false,
+                message = when {
+                    found == null -> "Couldn't reach the radio directory. Check the connection."
+                    found.isEmpty() -> "No station called \"$q\"."
+                    else -> null
+                },
+            )
+            tick()
+        }
+    }
+
+    fun closeRadioSearch() {
+        radioJob?.cancel()
+        radioUi.value = radioUi.value.copy(query = null, results = emptyList(), searching = false, message = null)
+        tick()
+    }
+
+    /** Saves or forgets a station (matched by stream address). */
+    fun toggleFavourite(station: RadioStation) {
+        val favs = radioUi.value.favourites
+        val updated = if (favs.any { it.url == station.url }) favs.filterNot { it.url == station.url } else favs + station
+        prefs.edit { putString(KEY_RADIO_FAVS, RadioBrowser.toJson(updated)) }
+        radioUi.value = radioUi.value.copy(favourites = updated)
+        tick()
+    }
+
+    // endregion
 
     // region Apple Music
 
@@ -537,6 +629,7 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
             keySounds = prefs.getBoolean(KEY_SOUNDS, true),
             haptics = prefs.getBoolean(KEY_HAPTICS, true),
             apple = apple.value,
+            radio = radioUi.value.copy(onAir = if (source == Source.RADIO) radio.currentStation()?.url else null),
         )
     }
 
@@ -574,6 +667,7 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
         local.release()
         remotes.values.forEach { it.release() }
         appleKit?.release()
+        radio.release()
     }
 
     companion object {
@@ -583,6 +677,8 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
         private const val KEY_HAPTICS = "haptics"
         private const val KEY_APPLE_DEV = "apple_developer_token"
         private const val KEY_APPLE_USER = "apple_music_user_token"
+        private const val KEY_RADIO_FAVS = "radio_favourites"
+        private const val KEY_RADIO_LAST = "radio_last_station"
         /** Winding speed relative to play: a four-minute song winds through in about 20 s. */
         const val WIND_SPEED = 12L
 

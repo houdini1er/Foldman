@@ -49,6 +49,7 @@ object DeckColors {
         Source.YT_MUSIC -> Color(0xFFB8322A)
         Source.APPLE_MUSIC -> Color(0xFFE9E5DF)
         Source.SPOTIFY -> Color(0xFF1F8F4A)
+        Source.RADIO -> Color(0xFF2F5E8C)
     }
 }
 

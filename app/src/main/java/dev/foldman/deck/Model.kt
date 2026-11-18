@@ -10,7 +10,29 @@ enum class Source(val label: String, val packageName: String?) {
     YT_MUSIC("YT Music", "com.google.android.apps.youtube.music"),
     APPLE_MUSIC("Apple Music", "com.apple.android.music"),
     SPOTIFY("Spotify", "com.spotify.music"),
+    RADIO("Web radio", null),
 }
+
+/** An internet radio station: a live stream URL, from the built-in list, a search or typed in. */
+data class RadioStation(
+    val name: String,
+    val url: String,
+    val favicon: String? = null,
+    /** Country, genre, codec… shown under the name. */
+    val info: String? = null,
+)
+
+/** The radio shelf: saved stations, plus the latest search in the Radio Browser directory. */
+data class RadioUi(
+    val favourites: List<RadioStation> = emptyList(),
+    val results: List<RadioStation> = emptyList(),
+    /** The search the results are for; null when showing the saved stations. */
+    val query: String? = null,
+    val searching: Boolean = false,
+    val message: String? = null,
+    /** Stream address of the station in the player, if the radio is in. */
+    val onAir: String? = null,
+)
 
 /**
  * What the mechanism is doing. PAUSED keeps the play key latched with the pinch roller lifted;

@@ -23,6 +23,7 @@
     <application
         android:allowNativeHeapPointerTagging="false"
         android:allowBackup="false"
+        android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         tools:replace="android:allowBackup"
         android:icon="@mipmap/ic_launcher"

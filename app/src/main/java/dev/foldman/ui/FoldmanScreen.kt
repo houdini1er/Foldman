@@ -166,6 +166,14 @@ fun FoldmanScreen(
             play = vm::playApplePlaylist,
         )
     }
+    val radioActions = remember(vm) {
+        RadioActions(
+            play = vm::playStation,
+            search = vm::searchRadio,
+            closeSearch = vm::closeRadioSearch,
+            toggleFavourite = vm::toggleFavourite,
+        )
+    }
     val shelfActions = remember(vm) {
         ShelfActions(
             selectSource = vm::selectSource,
@@ -175,6 +183,7 @@ fun FoldmanScreen(
             openApp = vm::openSourceApp,
             installApp = onInstallApp,
             apple = appleActions,
+            radio = radioActions,
         )
     }
     val deck = remember(vm) { DeckControls(vm) }
@@ -372,6 +381,7 @@ fun FoldmanScreen(
                             openApp = vm::openSourceApp,
                             installApp = onInstallApp,
                             apple = appleActions,
+                            radio = radioActions,
                         ),
                         Modifier.fillMaxWidth().height(sheetHeight),
                     )
