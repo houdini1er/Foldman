@@ -7,7 +7,11 @@
 > - **Unfolded layout:** the library is a rack of albums (folders) on the left, the player on the right. Tap an album to open it, slide an album or a tape to the right to play it.
 > - **Folded screen:** dark slate player; the tape follows the hinge angle and ejects as the phone opens (playback stops, then resumes when you close it).
 > - **PHONES** lights up green when headphones are connected.
-> - **Spotify** as a source (new in v1.1): Foldman drives the Spotify app's media session, like YT Music. See [Four ways to load a tape](#four-ways-to-load-a-tape).
+> - **Spotify** as a source (new in v1.1): Foldman drives the Spotify app's media session, like YT Music.
+> - **Screen stays awake while a tape plays** (new in v1.2); it sleeps normally when paused, stopped, or when you leave Foldman.
+> - **Web radio** as a source (new in v1.3): eight French stations ready, search about 50 000 more or paste a stream URL, star the ones you keep. AMS changes station.
+>
+> See [Five ways to load a tape](#five-ways-to-load-a-tape).
 >
 > Debug-signed builds only; uninstall the official Foldman before installing. Not tested beyond one Z Fold. Original project and credits: deveshrai.
 
@@ -20,7 +24,7 @@
 
 <p align="center"><b>Foldman turns a folding phone into a cassette player.</b><br>
 Folded, it's a portable player in your hand. Unfold it and it lays down into a deck.<br>
-Play your own music files, or drive YT Music, Apple Music and Spotify from real piano keys.</p>
+Play your own music files or internet radio, or drive YT Music, Apple Music and Spotify from real piano keys.</p>
 
 <p align="center">
   <a href="https://github.com/deveshrai/Foldman/wiki"><b>📖 Wiki</b></a> ·
@@ -49,7 +53,7 @@ Every key is a latching mechanism, and the cassette behind the window follows it
 | **FF / REW** | Latches and winds at 12× | Reels spin up with inertia to a motion-blurred blur, the counter races, the LED flickers. The tape winds straight through into the next or previous song, and the auto-stop thunks at the end of the tape. |
 | **AMS ⏮ ⏭** | Skips to the previous or next song | |
 
-The keys click (the sounds are synthesised, not samples) and buzz under your thumb. The tape counter is geared to the take-up reel, the VU needles follow the real audio on local files, and the tape packs on the reels show how far through the song you are.
+The keys click (the sounds are synthesised, not samples) and buzz under your thumb. The tape counter is geared to the take-up reel, the VU needles follow the real audio on local files and web radio, and the tape packs on the reels show how far through the song you are. While a tape plays, the screen stays on.
 
 ## Folded and unfolded
 
@@ -62,11 +66,12 @@ Foldman reads the hinge and rebuilds itself for each posture, without stopping t
   </tr>
 </table>
 
-## Four ways to load a tape
+## Five ways to load a tape
 
 | | Source | How it works |
 | --- | --- | --- |
 | 🗂 | **Local folder** | Pick any folder on the phone. MP3, FLAC, M4A, OGG, Opus, WAV and more play through Media3 in the background, with the system media controls and headphone keys. Album art comes from the files' embedded art or a `cover.jpg` / `folder.png` beside them, and each sub-folder becomes an album. |
+| 📻 | **Web radio** (new in this fork) | Internet radio played by Foldman's own player, so it keeps going in the background with the media notification, and the VU needles read the real audio. Eight French stations are saved to start with (FIP, France Inter, France Info, France Culture, France Musique, Mouv', TSF Jazz, Radio Nova). Search the free [Radio Browser](https://www.radio-browser.info) directory (about 50 000 stations) or paste a stream URL, and tap ☆ to keep a station. When the station sends it, the song title shows on the cassette label. AMS steps through the list; REW/FF do nothing on a live broadcast, and the counter reads LIVE. |
 | 🍎 | **Apple Music** | Sign in through Apple's MusicKit, browse your library playlists inside Foldman, and stream them in-app. Apple's player runs in its own process: if Apple's native code crashes, the music picks up again on the same song a few seconds later, and Foldman never closes. |
 | 🟢 | **Spotify** (new in this fork) | Foldman drives the Spotify app's own media session, like YT Music: play, pause, REW/FF, skip (AMS), the title and cover on the cassette label, and the queue. You pick what to play in Spotify itself; Foldman can't browse your Spotify library. Needs notification access, and no Spotify developer key. If the music cuts out when Spotify is in the background, set Spotify's battery to *Unrestricted* (Settings → Apps → Spotify → Battery). |
 | ▶️ | **YT Music** (and Apple Music without MusicKit) | Foldman drives the app's own media session: the keys, REW/FF, skip, artwork on the label and the queue all work on it, and you pick what to play in the app itself. |
@@ -83,7 +88,8 @@ The album art is printed on the cassette label, so you only see it around the re
 1. Download the **`Foldman-…-debug.apk`** from the [latest release of this fork](https://github.com/houdini1er/Foldman/releases/latest) (the official app's releases are at [deveshrai/Foldman](https://github.com/deveshrai/Foldman/releases/latest)) and open it on your phone. You'll need to allow installs from your browser or file manager.
 2. **For YT Music or Spotify:** open Foldman → YT Music (or Spotify) → *Grant access*. Android only shares other apps' playback with apps that have notification access. If the switch is greyed out, go to **App info → ⋮ → Allow restricted settings** first; Android does this for apps installed outside the Play Store.
 3. **For Spotify:** install the Spotify app and sign in, then pick a source in Foldman → Spotify. Foldman controls the Spotify app (play, pause, skip, queue, artwork); choose what to play in Spotify itself. No Spotify developer account or key is needed.
-4. **For Apple Music:** install Apple Music and sign in with a subscribed Apple ID, then choose Foldman → Apple Music → *Sign in to Apple Music*.
+4. **For web radio:** nothing to set up. Open Foldman → Web radio and pick a station.
+5. **For Apple Music:** install Apple Music and sign in with a subscribed Apple ID, then choose Foldman → Apple Music → *Sign in to Apple Music*.
 
 Works on Android 11 and later, on 64-bit ARM phones. It's designed for the Galaxy Z Fold 8 and runs on any foldable or regular phone. Samsung's **Auto Blocker** can stop sideloaded installs, so switch it off in Settings → Security and privacy if the install is refused.
 
@@ -95,7 +101,7 @@ cd Foldman
 ./gradlew :app:assembleDebug
 ```
 
-You'll need JDK 17+ and the Android SDK (compile SDK 37). The APK lands in `app/build/outputs/apk/debug/`. With no extra setup, local files, YT Music and Spotify work fully, and Apple Music runs through media-session control.
+You'll need JDK 17+ and the Android SDK (compile SDK 37). The APK lands in `app/build/outputs/apk/debug/`. With no extra setup, local files, web radio, YT Music and Spotify work fully, and Apple Music runs through media-session control.
 
 <details>
 <summary><b>Optional: Apple Music inside Foldman (MusicKit)</b></summary>
@@ -137,7 +143,10 @@ flowchart LR
     VM --> Local["LocalBackend<br/>Media3 controller"]
     VM --> Remote["RemoteBackend<br/>other apps' media sessions"]
     VM --> Kit["AppleKitBackend<br/>MusicKit client"]
+    VM --> Radio["RadioBackend<br/>Media3 controller"]
     Local --> Service["PlaybackService<br/>ExoPlayer + media notification"]
+    Radio --> Service
+    Radio --> Directory["Radio Browser<br/>station search"]
     Kit -- "Messenger IPC" --> ApplePlayer["ApplePlayerService<br/>own :apple process"]
     Remote --> Apps["YT Music · Spotify · Apple Music apps"]
     Kit --> API["Apple Music API<br/>library playlists"]
@@ -146,6 +155,7 @@ flowchart LR
 - **[`ui/ReelMotion.kt`](app/src/main/java/dev/foldman/ui/ReelMotion.kt):** the tape transport as a small physics model. Tape speed is constant, so each reel turns at *v ÷ r*; pack radii follow conservation of tape area, and the reels spin up and coast down.
 - **[`ui/Cassette.kt`](app/src/main/java/dev/foldman/ui/Cassette.kt):** the cassette, drawn in millimetres to the real 100.4 × 63.8 mm Compact Cassette and seen through the case window.
 - **[`deck/DeckViewModel.kt`](app/src/main/java/dev/foldman/deck/DeckViewModel.kt):** keys → transport state (stop vs. pause latches, winding through songs, auto-stop).
+- **[`radio/`](app/src/main/java/dev/foldman/radio):** the web radio source (stations share the local player, tagged so the two tapes never mix) and the Radio Browser directory client.
 - **[`apple/`](app/src/main/java/dev/foldman/apple):** MusicKit reached by reflection (so the app builds without Apple's SDK), the Apple Music API client, and the crash-isolated player service.
 - **[`art/icon.svg`](art/icon.svg):** the launcher icon's source. Run `python3 tools/svg_to_icon.py` to regenerate the adaptive and themed icon layers.
 
@@ -155,6 +165,7 @@ flowchart LR
 - **Another app taking over the audio stops Foldman.** Opening the Apple Music app, for example, can resume its own song; press PLAY in Foldman to take the audio back.
 - **The developer token in release builds expires on 19 April 2027.** In-app Apple Music stops working after that until there's a new release. Driving the Apple Music app keeps working.
 - **Streaming sources:** pick music inside YT Music, Spotify or the Apple Music app (Foldman browses only your Apple Music *library* playlists). REW/FF winds within the current song: rewinding stops at its start, and fast-forwarding past its end skips to the next song and stops. The VU needles animate rather than reading the audio, because Android doesn't let one app read another's.
+- **Web radio:** the song title only shows for stations that send it (ICY metadata); otherwise the label shows the station name. Some stations in the directory are offline or geo-blocked. Searching sends what you type to radio-browser.info.
 - Songs you uploaded to Apple Music yourself can't be streamed through MusicKit; they're greyed out.
 - Tags (title and artist) are read for the first 600 local files; files after that show their file names.
 
